@@ -46,8 +46,8 @@
     <input type="date" id="filtroFecha" onchange="render()"/>
     <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
     <label class="toggle">
-      <input type="checkbox" id="mostrarCeros" onchange="render()"/>
-      Mostrar también los de 0 puntos
+      <input type="checkbox" id="mostrarTodos" onchange="render()"/>
+      Mostrar todos
     </label>
   </div>
 
@@ -227,9 +227,9 @@
         return;
       }
 
-      const showZeros = document.getElementById("mostrarCeros")?.checked;
+      const showAll = document.getElementById("mostrarTodos")?.checked;
 
-      // Construye filas (nombre + puntos del día) con toggle de 0 puntos
+      // Construye filas (nombre + puntos del día)
       const items = [];
       for(const r of STATE.rows){
         const nombre = getCell(r, STATE.idxNombre) || "Alumno";
@@ -238,7 +238,7 @@
         let puntos = parseInt(String(puntosRaw).replace(/[^\d-]/g,""),10);
         if(Number.isNaN(puntos)) puntos = 0;
 
-        if(puntos > 0 || showZeros){
+        if(puntos > 0 || showAll){
           items.push({ fecha: STATE.activeDate, nombre, puntos });
         }
       }
@@ -247,9 +247,7 @@
       items.sort((a,b)=> b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
 
       if(items.length===0){
-        const msg = (showZeros)
-          ? `No hay alumnos para ${STATE.activeDate}.`
-          : `No hay alumnos con puntos para ${STATE.activeDate}.`;
+        const msg = `No hay alumnos para ${STATE.activeDate}.`;
         tabla.innerHTML = `<tr><td colspan="5">${msg}</td></tr>`;
         return;
       }
