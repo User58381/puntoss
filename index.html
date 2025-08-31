@@ -1,213 +1,235 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tabla de Puntos</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Comic+Sans+MS&display=swap');
-        body {
-            font-family: 'Comic Sans MS', cursive;
-            text-align: center;
-            background: url('./imagenes/fondo.jpg') no-repeat center center fixed;
-            background-size: cover;
-            color: white;
-        }
-        #fecha {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            display: inline-block;
-            border-radius: 10px;
-        }
-        h1 {
-            font-size: 32px;
-            text-shadow: 2px 2px 4px black;
-        }
-        table {
-            width: 80%;
-            margin: auto;
-            border-collapse: collapse;
-            background: rgba(255, 255, 255, 0.9);
-            color: black;
-            font-size: 18px;
-        }
-        th, td {
-            padding: 10px;
-            border: 2px solid black;
-            text-align: center;
-        }
-        th {
-            background: gold;
-        }
-        .brillo {
-            animation: brillo 1s infinite alternate;
-        }
-        @keyframes brillo {
-            from {
-                text-shadow: 0 0 5px gold, 0 0 10px yellow;
-            }
-            to {
-                text-shadow: 0 0 10px gold, 0 0 20px yellow;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Tabla de Puntos</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Comic+Sans+MS&display=swap');
+    body{
+      font-family:'Comic Sans MS',cursive;
+      text-align:center;
+      background:url('./imagenes/fondo.jpg') no-repeat center center fixed;
+      background-size:cover;
+      color:white;
+    }
+    #fecha{
+      font-size:24px;font-weight:bold;margin-bottom:20px;padding:10px;
+      background:rgba(0,0,0,.5);display:inline-block;border-radius:10px;
+    }
+    h1{font-size:32px;text-shadow:2px 2px 4px black;}
+    table{
+      width:80%;margin:auto;border-collapse:collapse;
+      background:rgba(255,255,255,.9);color:black;font-size:18px;
+    }
+    th,td{padding:10px;border:2px solid black;text-align:center;}
+    th{background:gold;}
+    .brillo{animation:brillo 1s infinite alternate;}
+    @keyframes brillo{
+      from{ text-shadow:0 0 5px gold,0 0 10px yellow;}
+      to{   text-shadow:0 0 10px gold,0 0 20px yellow;}
+    }
+  </style>
 </head>
 <body>
-    <h1>Tabla de Puntos</h1>
-    <div id="fecha"></div>
-    <br>
-    <input type="date" id="filtroFecha" onchange="filtrarTabla()">
-    <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()">
-    
-    <table>
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Alumno</th>
-                <th>Puntos</th>
-                <th>Rango</th>
-                <th>Recompensas</th>
-            </tr>
-        </thead>
-        <tbody id="tablaPuntos">
-            <tr><td colspan="5">Cargando datos...</td></tr>
-        </tbody>
-    </table>
+  <h1>Tabla de Puntos</h1>
+  <div id="fecha"></div>
+  <br/>
+  <input type="date" id="filtroFecha" onchange="filtrarTabla()"/>
+  <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
 
-    <script>
-        function actualizarFecha() {
-            const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const fechaHoy = new Date().toLocaleDateString('es-ES', opcionesFecha);
-            document.getElementById("fecha").innerHTML = `📅 Hoy es: <b>${fechaHoy}</b>`;
+  <table>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Alumno</th>
+        <th>Puntos</th>
+        <th>Rango</th>
+        <th>Recompensas</th>
+      </tr>
+    </thead>
+    <tbody id="tablaPuntos">
+      <tr><td colspan="5">Cargando datos...</td></tr>
+    </tbody>
+  </table>
 
-            // Establecer el valor del input tipo date al día actual
-            const hoy = new Date().toISOString().split("T")[0];
-            document.getElementById("filtroFecha").value = hoy;
+  <script>
+    // ====== Utilidades de fecha ======
+    function hoyISO(){
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${day}`;
+    }
+
+    function actualizarFecha(){
+      const opciones = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+      const fechaHoy = new Date().toLocaleDateString('es-ES', opciones);
+      document.getElementById("fecha").innerHTML = `📅 Hoy es: <b>${fechaHoy}</b>`;
+      document.getElementById("filtroFecha").value = hoyISO();
+    }
+
+    // Convierte valores GViz a "YYYY-MM-DD"
+    function convertirFecha(val){
+      if(!val) return "Sin fecha";
+      // Caso típico GViz: "Date(2025,7,31,12,34,56)"
+      if(typeof val === "string"){
+        const m = val.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
+        if(m){
+          const y = parseInt(m[1],10);
+          const mo = parseInt(m[2],10)+1;
+          const d  = parseInt(m[3],10);
+          return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+        }
+        // Si ya viniera en ISO
+        if(/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+      }
+      // A veces llega un objeto con .v como número serial (raro en GViz)
+      if(typeof val === "number"){
+        // Serial de Sheets (días desde 1899-12-30)
+        const base = new Date(Date.UTC(1899,11,30));
+        const dt = new Date(base.getTime()+val*86400000);
+        return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`;
+      }
+      return String(val);
+    }
+
+    // ====== Rangos y recompensas ======
+    function obtenerRango(puntos){
+      if(puntos>=90) return "🌈🔥 Gran maestro arcoiris";
+      if(puntos>=80) return "🌈 Heroico arcoiris";
+      if(puntos>=70) return "🟠🔥 Heroico élite";
+      if(puntos>=60) return "🟡 Heroico";
+      if(puntos>=50) return "🔴 Gran Maestro";
+      if(puntos>=40) return "🟠 Maestro";
+      if(puntos>=30) return "🟣 Experto";
+      if(puntos>=20) return "🔵 Avanzado";
+      if(puntos>=10) return "🟢 Trabajador";
+      return "⚪ Sin rango";
+    }
+
+    function obtenerRecompensas(puntos){
+      const grandes = Math.floor(puntos/30);
+      const pequenas = Math.floor((puntos%30)/10);
+      let r = "✨";
+      for(let i=0;i<grandes;i++) r+="🌟";
+      for(let i=0;i<pequenas;i++) r+="⭐";
+      if(puntos>=70) r+=" 🌌";
+      if(puntos>=90) r+=" 🌈";
+      return r;
+    }
+
+    // ====== Filtro UI ======
+    function filtrarTabla(){
+      const filtroFecha = document.getElementById("filtroFecha").value;
+      const filtroNombre = document.getElementById("buscador").value.toLowerCase().trim();
+      const filas = document.querySelectorAll("#tablaPuntos tr");
+      filas.forEach(fila=>{
+        const fecha = fila.cells[0]?.innerText || "";
+        const nombre = (fila.cells[1]?.innerText || "").toLowerCase();
+        const okFecha = !filtroFecha || fecha===filtroFecha;
+        const okNombre = !filtroNombre || nombre.includes(filtroNombre);
+        fila.style.display = (okFecha && okNombre) ? "" : "none";
+      });
+    }
+
+    // ====== Carga de datos desde tu nueva Sheet (por gid) ======
+    async function cargarPuntos(){
+      const SHEET_ID = "1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
+      const GID = "0";
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`;
+
+      const tabla = document.getElementById("tablaPuntos");
+      tabla.innerHTML = `<tr><td colspan="5">Cargando datos...</td></tr>`;
+
+      try{
+        const res = await fetch(url);
+        if(!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        // GViz envuelve JSON con "google.visualization.Query.setResponse(...)"
+        const json = JSON.parse(text.substring(47, text.length-2));
+
+        if(!json.table || !Array.isArray(json.table.rows)){
+          throw new Error("Formato inesperado de Google Sheets.");
         }
 
-        async function cargarPuntos() {
-            const sheetId = "1RrXV3mI1qiFnA_GSsH9yB3AfN6OlVtGNrSwlmTf_k34";
-            const sheetName = "Respuestas de formulario 1";
-            const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&tq&sheet=${encodeURIComponent(sheetName)}`;
+        const cols = (json.table.cols||[]).map(c => (c.label||"").toString().trim().toLowerCase());
 
-            try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-                }
-                const text = await response.text();
-                const json = JSON.parse(text.substring(47, text.length - 2));
+        // Intenta detectar índices por nombre de columna
+        const findIdx = (cands)=> {
+          for(const c of cands){
+            const i = cols.findIndex(h => h.includes(c));
+            if(i!==-1) return i;
+          }
+          return -1;
+        };
 
-                if (!json.table || !json.table.rows || !Array.isArray(json.table.rows)) {
-                    throw new Error("Formato de datos incorrecto en Google Sheets.");
-                }
+        let idxFecha  = findIdx(["marca temporal","timestamp","fecha"]);
+        let idxNombre = findIdx(["alumno","nombre","estudiante"]);
+        let idxPuntos = findIdx(["puntos","créditos","creditos","score"]);
 
-                const rows = json.table.rows;
-                const tabla = document.getElementById("tablaPuntos");
-                tabla.innerHTML = "";
+        // Fallback si no hay encabezados
+        if(idxFecha===-1)  idxFecha = 0;
+        if(idxNombre===-1) idxNombre = 1;
+        if(idxPuntos===-1) idxPuntos = 2;
 
-                if (!rows.length) {
-                    tabla.innerHTML = `<tr><td colspan='5'>No hay datos disponibles</td></tr>`;
-                    return;
-                }
+        const getCell = (row, idx) => (row.c && row.c[idx]) ? (row.c[idx].f ?? row.c[idx].v) : null;
 
-                let alumnos = {};
+        const agregados = Object.create(null);
 
-                rows.forEach((row) => {
-                    let fecha = row.c[0]?.v || "";
-                    let nombre = row.c[1]?.v || "Alumno";
-                    let puntos = (!isNaN(parseInt(row.c[2]?.v))) ? parseInt(row.c[2].v) * 10 : 10;
-                    let fechaConvertida = convertirFecha(fecha);
-                    let clave = `${fechaConvertida}-${nombre}`;
+        for(const row of json.table.rows){
+          const rawFecha  = getCell(row, idxFecha);
+          const rawNombre = getCell(row, idxNombre);
+          const rawPuntos = getCell(row, idxPuntos);
 
-                    if (alumnos[clave]) {
-                        alumnos[clave].puntos += puntos;
-                    } else {
-                        alumnos[clave] = { fecha: fechaConvertida, nombre, puntos };
-                    }
-                });
+          const fecha = convertirFecha(rawFecha);
+          const nombre = (rawNombre ?? "Alumno").toString().trim();
 
-                Object.values(alumnos).forEach(({ fecha, nombre, puntos }) => {
-                    let rango = obtenerRango(puntos);
-                    let recompensa = obtenerRecompensas(puntos);
+          // Soporta "10", "+10", "10 pts", etc. y multiplica *10 como en tu versión
+          let base = 1*parseInt(String(rawPuntos).replace(/[^\d-]/g,""),10);
+          if(Number.isNaN(base)) base = 1; // fallback
+          const puntos = base * 10;
 
-                    let fila = `<tr>
-                        <td>${fecha}</td>
-                        <td>${nombre}</td>
-                        <td>${puntos}</td>
-                        <td class="brillo">${rango}</td>
-                        <td class="brillo">${recompensa}</td>
-                    </tr>`;
-                    tabla.innerHTML += fila;
-                });
-
-                // Aplicar filtro después de cargar datos
-                filtrarTabla();
-
-            } catch (error) {
-                console.error("Error al cargar los datos:", error);
-                document.getElementById("tablaPuntos").innerHTML = `<tr><td colspan='5'>Error al cargar los datos. Verifique la conexión.</td></tr>`;
-            }
+          const clave = `${fecha}__${nombre}`;
+          if(agregados[clave]) agregados[clave].puntos += puntos;
+          else agregados[clave] = { fecha, nombre, puntos };
         }
 
-        function convertirFecha(fecha) {
-            if (!fecha) return "Sin fecha";
-            let match = fecha.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
-            if (match) {
-                let anio = parseInt(match[1]);
-                let mes = parseInt(match[2]) + 1;
-                let dia = parseInt(match[3]);
-                return `${anio}-${mes.toString().padStart(2, "0")}-${dia.toString().padStart(2, "0")}`;
-            }
-            return fecha;
+        const filas = Object.values(agregados)
+          // Orden opcional: primero más puntos, luego nombre
+          .sort((a,b)=> b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
+
+        tabla.innerHTML = "";
+        if(filas.length===0){
+          tabla.innerHTML = `<tr><td colspan="5">No hay datos disponibles</td></tr>`;
+        }else{
+          for(const {fecha, nombre, puntos} of filas){
+            const rango = obtenerRango(puntos);
+            const recompensa = obtenerRecompensas(puntos);
+            tabla.insertAdjacentHTML("beforeend", `
+              <tr>
+                <td>${fecha}</td>
+                <td>${nombre}</td>
+                <td>${puntos}</td>
+                <td class="brillo">${rango}</td>
+                <td class="brillo">${recompensa}</td>
+              </tr>
+            `);
+          }
         }
 
-        function obtenerRango(puntos) {
-            if (puntos >= 90) return "🌈🔥 Gran maestro arcoiris";
-            if (puntos >= 80) return "🌈 Heroico arcoiris";
-            if (puntos >= 70) return "🟠🔥 Heroico élite";
-            if (puntos >= 60) return "🟡 Heroico";
-            if (puntos >= 50) return "🔴 Gran Maestro";
-            if (puntos >= 40) return "🟠 Maestro";
-            if (puntos >= 30) return "🟣 Experto";
-            if (puntos >= 20) return "🔵 Avanzado";
-            if (puntos >= 10) return "🟢 Trabajador";
-            return "⚪ Sin rango";
-        }
+        // Filtra por hoy y/o nombre después de pintar
+        filtrarTabla();
 
-        function obtenerRecompensas(puntos) {
-            let estrellasGrandes = Math.floor(puntos / 30);
-            let estrellasPequeñas = Math.floor((puntos % 30) / 10);
-            let recompensa = "✨";
+      }catch(err){
+        console.error(err);
+        tabla.innerHTML = `<tr><td colspan="5">Error al cargar los datos. Verifique el acceso público de la hoja o la conexión.</td></tr>`;
+      }
+    }
 
-            for (let i = 0; i < estrellasGrandes; i++) recompensa += "🌟";
-            for (let i = 0; i < estrellasPequeñas; i++) recompensa += "⭐";
-
-            if (puntos >= 70) recompensa += " 🌌";
-            if (puntos >= 90) recompensa += " 🌈";
-
-            return recompensa;
-        }
-
-        function filtrarTabla() {
-            let filtroFecha = document.getElementById("filtroFecha").value;
-            let filtroNombre = document.getElementById("buscador").value.toLowerCase().trim();
-            let filas = document.querySelectorAll("#tablaPuntos tr");
-
-            filas.forEach(fila => {
-                let fecha = fila.cells[0]?.innerText || "";
-                let nombre = fila.cells[1]?.innerText.toLowerCase() || "";
-                let coincideFecha = filtroFecha === "" || fecha === filtroFecha;
-                let coincideNombre = filtroNombre === "" || nombre.includes(filtroNombre);
-                fila.style.display = coincideFecha && coincideNombre ? "" : "none";
-            });
-        }
-
-        actualizarFecha();
-        cargarPuntos();
-    </script>
+    actualizarFecha();
+    cargarPuntos();
+  </script>
 </body>
 </html>
