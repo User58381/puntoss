@@ -35,7 +35,7 @@
   <h1>Tabla de Puntos</h1>
   <div id="fecha"></div>
   <br/>
-  <input type="date" id="filtroFecha" onchange="filtrarTabla()"/>
+  <input type="date" id="filtroFecha" onchange="render()"/>
   <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
 
   <table>
@@ -54,7 +54,11 @@
   </table>
 
   <script>
-    // ====== Utilidades de fecha ======
+    // ========= Config =========
+    const SHEET_ID = "1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
+    const GID = "0";
+
+    // ========= Utilidades fecha =========
     function hoyISO(){
       const d = new Date();
       const y = d.getFullYear();
@@ -62,40 +66,13 @@
       const day = String(d.getDate()).padStart(2,"0");
       return `${y}-${m}-${day}`;
     }
-
-    function actualizarFecha(){
+    function actualizarCabecera(){
       const opciones = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
       const fechaHoy = new Date().toLocaleDateString('es-ES', opciones);
       document.getElementById("fecha").innerHTML = `📅 Hoy es: <b>${fechaHoy}</b>`;
-      document.getElementById("filtroFecha").value = hoyISO();
     }
 
-    // Convierte valores GViz a "YYYY-MM-DD"
-    function convertirFecha(val){
-      if(!val) return "Sin fecha";
-      // Caso típico GViz: "Date(2025,7,31,12,34,56)"
-      if(typeof val === "string"){
-        const m = val.match(/Date\((\d+),\s*(\d+),\s*(\d+)/);
-        if(m){
-          const y = parseInt(m[1],10);
-          const mo = parseInt(m[2],10)+1;
-          const d  = parseInt(m[3],10);
-          return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-        }
-        // Si ya viniera en ISO
-        if(/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-      }
-      // A veces llega un objeto con .v como número serial (raro en GViz)
-      if(typeof val === "number"){
-        // Serial de Sheets (días desde 1899-12-30)
-        const base = new Date(Date.UTC(1899,11,30));
-        const dt = new Date(base.getTime()+val*86400000);
-        return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth()+1).padStart(2,"0")}-${String(dt.getUTCDate()).padStart(2,"0")}`;
-      }
-      return String(val);
-    }
-
-    // ====== Rangos y recompensas ======
+    // ========= Rangos / Recompensas =========
     function obtenerRango(puntos){
       if(puntos>=90) return "🌈🔥 Gran maestro arcoiris";
       if(puntos>=80) return "🌈 Heroico arcoiris";
@@ -108,7 +85,6 @@
       if(puntos>=10) return "🟢 Trabajador";
       return "⚪ Sin rango";
     }
-
     function obtenerRecompensas(puntos){
       const grandes = Math.floor(puntos/30);
       const pequenas = Math.floor((puntos%30)/10);
@@ -120,7 +96,7 @@
       return r;
     }
 
-    // ====== Filtro UI ======
+    // ========= Filtro UI =========
     function filtrarTabla(){
       const filtroFecha = document.getElementById("filtroFecha").value;
       const filtroNombre = document.getElementById("buscador").value.toLowerCase().trim();
@@ -134,102 +110,196 @@
       });
     }
 
-    // ====== Carga de datos desde tu nueva Sheet (por gid) ======
-    async function cargarPuntos(){
-      const SHEET_ID = "1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
-      const GID = "0";
+    // ========= Lectura robusta de Sheets =========
+    async function fetchGViz(){
       const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(`GViz HTTP ${res.status}`);
+      const text = await res.text();
+      const m = text.match(/setResponse\(([\s\S]+)\)\s*;?$/);
+      if(!m) throw new Error("GViz: respuesta inesperada");
+      return JSON.parse(m[1]);
+    }
+    async function fetchCSV(){
+      // Útil si GViz tuviera CORS raro; requiere que la hoja sea visible con enlace
+      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error(`CSV HTTP ${res.status}`);
+      const csv = await res.text();
+      // parseo simple
+      const rows = csv.split(/\r?\n/).map(r=>{
+        // separa por comas respetando comillas dobles
+        const out=[]; let cur=""; let inQ=false;
+        for(let i=0;i<r.length;i++){
+          const ch=r[i], nx=r[i+1];
+          if(ch==='"' && nx==='"'){ cur+='"'; i++; continue; }
+          if(ch==='"'){ inQ=!inQ; continue; }
+          if(ch===',' && !inQ){ out.push(cur); cur=""; continue; }
+          cur+=ch;
+        }
+        out.push(cur);
+        return out;
+      });
+      const cols = rows[0] || [];
+      const data = rows.slice(1).map(r => ({ c: cols.map((_,i)=> ({ v: r[i]??"" })) }));
+      return { table: { cols: cols.map(h=>({label:h})), rows: data } };
+    }
+
+    // Detecta columnas para tablero (Nombre + fechas)
+    function detectarEstructuraTablero(cols){
+      const labels = cols.map(c => (c.label||"").toString().trim());
+      // Columna "nombre"
+      let idxNombre = labels.findIndex(h => /nombre|alumno|estudiante/i.test(h));
+      if(idxNombre===-1) idxNombre = 0; // fallback
+
+      // Columnas que parecen fechas YYYY-MM-DD
+      const dateCols = [];
+      const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+      labels.forEach((h,i)=>{ if(dateRe.test(h)) dateCols.push({i, label:h}); });
+
+      return { idxNombre, dateCols };
+    }
+
+    // Estado en memoria
+    let STATE = {
+      rows: [],
+      cols: [],
+      idxNombre: 0,
+      dateCols: [],
+      activeDate: null
+    };
+
+    function getCell(row, idx){
+      const c = row.c?.[idx];
+      if(!c) return "";
+      // GViz puede mandar v o f; CSV parse simulado solo usa v
+      return (c.f ?? c.v ?? "").toString().trim();
+    }
+
+    function elegirFechaActiva(){
+      const input = document.getElementById("filtroFecha");
+      const solicitada = input.value;
+      const setInput = (val)=>{ input.value = val; };
+
+      // Si existe la solicitada, úsala
+      if(STATE.dateCols.some(dc => dc.label===solicitada)){
+        STATE.activeDate = solicitada;
+        return;
+      }
+      // Si no, usa la más reciente disponible (orden lexicográfico coincide con cronológico en ISO)
+      if(STATE.dateCols.length){
+        const latest = STATE.dateCols.map(dc=>dc.label).sort().at(-1);
+        STATE.activeDate = latest;
+        setInput(latest);
+        return;
+      }
+      // Sin columnas-fecha: deja input en blanco
+      STATE.activeDate = "";
+      setInput("");
+    }
+
+    function render(){
+      const tabla = document.getElementById("tablaPuntos");
+      tabla.innerHTML = "";
+
+      if(!STATE.rows.length){
+        tabla.innerHTML = `<tr><td colspan="5">No hay datos</td></tr>`;
+        return;
+      }
+      elegirFechaActiva();
+
+      if(!STATE.activeDate){
+        tabla.innerHTML = `<tr><td colspan="5">No hay columnas de fecha (YYYY-MM-DD) en la hoja.</td></tr>`;
+        return;
+      }
+
+      const idxFechaCol = STATE.dateCols.find(dc => dc.label===STATE.activeDate)?.i;
+      if(idxFechaCol==null){
+        tabla.innerHTML = `<tr><td colspan="5">No se encontró la columna de la fecha seleccionada.</td></tr>`;
+        return;
+      }
+
+      // Construye filas (nombre + puntos del día)
+      const items = [];
+      for(const r of STATE.rows){
+        const nombre = getCell(r, STATE.idxNombre) || "Alumno";
+        if(!nombre) continue;
+        let puntosRaw = getCell(r, idxFechaCol);
+        // permite "10", "10 pts", "", etc.
+        let puntos = parseInt(String(puntosRaw).replace(/[^\d-]/g,""),10);
+        if(Number.isNaN(puntos)) puntos = 0;
+
+        items.push({ fecha: STATE.activeDate, nombre, puntos });
+      }
+
+      // Ordena por puntos desc, luego nombre
+      items.sort((a,b)=> b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
+
+      if(items.length===0){
+        tabla.innerHTML = `<tr><td colspan="5">No hay datos para ${STATE.activeDate}</td></tr>`;
+        return;
+      }
+
+      for(const {fecha, nombre, puntos} of items){
+        const rango = obtenerRango(puntos);
+        const recompensa = obtenerRecompensas(puntos);
+        tabla.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td>${fecha}</td>
+            <td>${nombre}</td>
+            <td>${puntos}</td>
+            <td class="brillo">${rango}</td>
+            <td class="brillo">${recompensa}</td>
+          </tr>
+        `);
+      }
+
+      // Aplica filtro de texto (por si el usuario ya escribió)
+      filtrarTabla();
+    }
+
+    async function cargar(){
+      actualizarCabecera();
+      // Inicializa el input con hoy (si esa fecha no existe, luego se ajusta a la más reciente)
+      document.getElementById("filtroFecha").value = hoyISO();
 
       const tabla = document.getElementById("tablaPuntos");
       tabla.innerHTML = `<tr><td colspan="5">Cargando datos...</td></tr>`;
 
       try{
-        const res = await fetch(url);
-        if(!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
-        // GViz envuelve JSON con "google.visualization.Query.setResponse(...)"
-        const json = JSON.parse(text.substring(47, text.length-2));
-
-        if(!json.table || !Array.isArray(json.table.rows)){
-          throw new Error("Formato inesperado de Google Sheets.");
+        let data;
+        try{
+          const gviz = await fetchGViz();
+          data = gviz;
+        }catch(_){
+          // Fallback CSV si GViz falla por CORS/otros
+          data = await fetchCSV();
         }
 
-        const cols = (json.table.cols||[]).map(c => (c.label||"").toString().trim().toLowerCase());
-
-        // Intenta detectar índices por nombre de columna
-        const findIdx = (cands)=> {
-          for(const c of cands){
-            const i = cols.findIndex(h => h.includes(c));
-            if(i!==-1) return i;
-          }
-          return -1;
-        };
-
-        let idxFecha  = findIdx(["marca temporal","timestamp","fecha"]);
-        let idxNombre = findIdx(["alumno","nombre","estudiante"]);
-        let idxPuntos = findIdx(["puntos","créditos","creditos","score"]);
-
-        // Fallback si no hay encabezados
-        if(idxFecha===-1)  idxFecha = 0;
-        if(idxNombre===-1) idxNombre = 1;
-        if(idxPuntos===-1) idxPuntos = 2;
-
-        const getCell = (row, idx) => (row.c && row.c[idx]) ? (row.c[idx].f ?? row.c[idx].v) : null;
-
-        const agregados = Object.create(null);
-
-        for(const row of json.table.rows){
-          const rawFecha  = getCell(row, idxFecha);
-          const rawNombre = getCell(row, idxNombre);
-          const rawPuntos = getCell(row, idxPuntos);
-
-          const fecha = convertirFecha(rawFecha);
-          const nombre = (rawNombre ?? "Alumno").toString().trim();
-
-          // Soporta "10", "+10", "10 pts", etc. y multiplica *10 como en tu versión
-          let base = 1*parseInt(String(rawPuntos).replace(/[^\d-]/g,""),10);
-          if(Number.isNaN(base)) base = 1; // fallback
-          const puntos = base * 10;
-
-          const clave = `${fecha}__${nombre}`;
-          if(agregados[clave]) agregados[clave].puntos += puntos;
-          else agregados[clave] = { fecha, nombre, puntos };
+        const cols = data.table?.cols || [];
+        const rows = data.table?.rows || [];
+        if(!rows.length){
+          tabla.innerHTML = `<tr><td colspan="5">Sin filas en la hoja.</td></tr>`;
+          return;
         }
 
-        const filas = Object.values(agregados)
-          // Orden opcional: primero más puntos, luego nombre
-          .sort((a,b)=> b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
+        const { idxNombre, dateCols } = detectarEstructuraTablero(cols);
 
-        tabla.innerHTML = "";
-        if(filas.length===0){
-          tabla.innerHTML = `<tr><td colspan="5">No hay datos disponibles</td></tr>`;
-        }else{
-          for(const {fecha, nombre, puntos} of filas){
-            const rango = obtenerRango(puntos);
-            const recompensa = obtenerRecompensas(puntos);
-            tabla.insertAdjacentHTML("beforeend", `
-              <tr>
-                <td>${fecha}</td>
-                <td>${nombre}</td>
-                <td>${puntos}</td>
-                <td class="brillo">${rango}</td>
-                <td class="brillo">${recompensa}</td>
-              </tr>
-            `);
-          }
-        }
+        STATE.rows = rows;
+        STATE.cols = cols;
+        STATE.idxNombre = idxNombre;
+        STATE.dateCols = dateCols;
 
-        // Filtra por hoy y/o nombre después de pintar
-        filtrarTabla();
+        render();
 
       }catch(err){
         console.error(err);
-        tabla.innerHTML = `<tr><td colspan="5">Error al cargar los datos. Verifique el acceso público de la hoja o la conexión.</td></tr>`;
+        tabla.innerHTML = `<tr><td colspan="5">Error al cargar datos. Verifica que la hoja esté visible con enlace o publicada a la web.</td></tr>`;
       }
     }
 
-    actualizarFecha();
-    cargarPuntos();
+    // Go!
+    cargar();
   </script>
 </body>
 </html>
