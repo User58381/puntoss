@@ -18,6 +18,13 @@
       background:rgba(0,0,0,.5);display:inline-block;border-radius:10px;
     }
     h1{font-size:32px;text-shadow:2px 2px 4px black;}
+    .controls{
+      display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-bottom:10px;
+    }
+    .toggle{
+      background:rgba(0,0,0,.5);
+      padding:6px 10px;border-radius:999px;font-size:14px;display:inline-flex;align-items:center;gap:6px;
+    }
     table{
       width:80%;margin:auto;border-collapse:collapse;
       background:rgba(255,255,255,.9);color:black;font-size:18px;
@@ -34,9 +41,15 @@
 <body>
   <h1>Tabla de Puntos</h1>
   <div id="fecha"></div>
-  <br/>
-  <input type="date" id="filtroFecha" onchange="render()"/>
-  <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
+
+  <div class="controls">
+    <input type="date" id="filtroFecha" onchange="render()"/>
+    <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
+    <label class="toggle">
+      <input type="checkbox" id="mostrarCeros" onchange="render()"/>
+      Mostrar también los de 0 puntos
+    </label>
+  </div>
 
   <table>
     <thead>
@@ -121,14 +134,12 @@
       return JSON.parse(m[1]);
     }
     async function fetchCSV(){
-      // Útil si GViz tuviera CORS raro; requiere que la hoja sea visible con enlace
       const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
       const res = await fetch(url);
       if(!res.ok) throw new Error(`CSV HTTP ${res.status}`);
       const csv = await res.text();
       // parseo simple
       const rows = csv.split(/\r?\n/).map(r=>{
-        // separa por comas respetando comillas dobles
         const out=[]; let cur=""; let inQ=false;
         for(let i=0;i<r.length;i++){
           const ch=r[i], nx=r[i+1];
@@ -149,7 +160,8 @@
     function detectarEstructuraTablero(cols){
       const labels = cols.map(c => (c.label||"").toString().trim());
       // Columna "nombre"
-      let idxNombre = labels.findIndex(h => /nombre|alumno|estudiante/i.test(h));
+      let idxNombre = labels.findIndex(h => /^nombre del alumno$/i.test(h));
+      if(idxNombre===-1) idxNombre = labels.findIndex(h => /nombre|alumno|estudiante/i.test(h));
       if(idxNombre===-1) idxNombre = 0; // fallback
 
       // Columnas que parecen fechas YYYY-MM-DD
@@ -172,7 +184,6 @@
     function getCell(row, idx){
       const c = row.c?.[idx];
       if(!c) return "";
-      // GViz puede mandar v o f; CSV parse simulado solo usa v
       return (c.f ?? c.v ?? "").toString().trim();
     }
 
@@ -181,19 +192,16 @@
       const solicitada = input.value;
       const setInput = (val)=>{ input.value = val; };
 
-      // Si existe la solicitada, úsala
       if(STATE.dateCols.some(dc => dc.label===solicitada)){
         STATE.activeDate = solicitada;
         return;
       }
-      // Si no, usa la más reciente disponible (orden lexicográfico coincide con cronológico en ISO)
       if(STATE.dateCols.length){
         const latest = STATE.dateCols.map(dc=>dc.label).sort().at(-1);
         STATE.activeDate = latest;
         setInput(latest);
         return;
       }
-      // Sin columnas-fecha: deja input en blanco
       STATE.activeDate = "";
       setInput("");
     }
@@ -219,24 +227,30 @@
         return;
       }
 
-      // Construye filas (nombre + puntos del día)
+      const showZeros = document.getElementById("mostrarCeros")?.checked;
+
+      // Construye filas (nombre + puntos del día) con toggle de 0 puntos
       const items = [];
       for(const r of STATE.rows){
         const nombre = getCell(r, STATE.idxNombre) || "Alumno";
         if(!nombre) continue;
         let puntosRaw = getCell(r, idxFechaCol);
-        // permite "10", "10 pts", "", etc.
         let puntos = parseInt(String(puntosRaw).replace(/[^\d-]/g,""),10);
         if(Number.isNaN(puntos)) puntos = 0;
 
-        items.push({ fecha: STATE.activeDate, nombre, puntos });
+        if(puntos > 0 || showZeros){
+          items.push({ fecha: STATE.activeDate, nombre, puntos });
+        }
       }
 
       // Ordena por puntos desc, luego nombre
       items.sort((a,b)=> b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
 
       if(items.length===0){
-        tabla.innerHTML = `<tr><td colspan="5">No hay datos para ${STATE.activeDate}</td></tr>`;
+        const msg = (showZeros)
+          ? `No hay alumnos para ${STATE.activeDate}.`
+          : `No hay alumnos con puntos para ${STATE.activeDate}.`;
+        tabla.innerHTML = `<tr><td colspan="5">${msg}</td></tr>`;
         return;
       }
 
@@ -260,7 +274,6 @@
 
     async function cargar(){
       actualizarCabecera();
-      // Inicializa el input con hoy (si esa fecha no existe, luego se ajusta a la más reciente)
       document.getElementById("filtroFecha").value = hoyISO();
 
       const tabla = document.getElementById("tablaPuntos");
@@ -272,7 +285,6 @@
           const gviz = await fetchGViz();
           data = gviz;
         }catch(_){
-          // Fallback CSV si GViz falla por CORS/otros
           data = await fetchCSV();
         }
 
