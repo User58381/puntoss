@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tabla de Puntos</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Comic+Sans+MS&display=swap');
+    /* Nota: "Comic Sans MS" es fuente del sistema; el @import a Google Fonts no es necesario */
     body{
-      font-family:'Comic Sans MS',cursive;
+      font-family: 'Comic Sans MS','Comic Sans','Comic Neue',cursive;
       text-align:center;
       background:url('./imagenes/fondo.jpg') no-repeat center center fixed;
       background-size:cover;
@@ -138,7 +138,7 @@
       const res = await fetch(url);
       if(!res.ok) throw new Error(`CSV HTTP ${res.status}`);
       const csv = await res.text();
-      // parseo simple
+      // parseo simple (CSV con comillas)
       const rows = csv.split(/\r?\n/).map(r=>{
         const out=[]; let cur=""; let inQ=false;
         for(let i=0;i<r.length;i++){
@@ -156,23 +156,50 @@
       return { table: { cols: cols.map(h=>({label:h})), rows: data } };
     }
 
-    // Detecta columnas para tablero (Nombre + fechas)
+    // ========= Normalización de encabezados de fecha =========
+    // Convierte headers como "04/11/2025", "2025-11-04", "4-11-25" -> "2025-11-04"
+    function headerToISO(h){
+      if(!h) return null;
+      h = String(h).trim();
+
+      // 1) YYYY-MM-DD o YYYY/MM/DD o YYYY.MM.DD
+      let m = h.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
+      if(m){
+        const [_,Y,M,D] = m;
+        return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`;
+      }
+
+      // 2) DD/MM/YYYY o DD-MM-YYYY o DD.MM.YYYY (o con año de 2 dígitos)
+      m = h.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+      if(m){
+        let [_,D,M,Y] = m;
+        if(Y.length===2) Y = `20${Y}`;
+        return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`;
+      }
+
+      return null;
+    }
+
+    // ========= Detección de estructura =========
     function detectarEstructuraTablero(cols){
       const labels = cols.map(c => (c.label||"").toString().trim());
+
       // Columna "nombre"
       let idxNombre = labels.findIndex(h => /^nombre del alumno$/i.test(h));
       if(idxNombre===-1) idxNombre = labels.findIndex(h => /nombre|alumno|estudiante/i.test(h));
       if(idxNombre===-1) idxNombre = 0; // fallback
 
-      // Columnas que parecen fechas YYYY-MM-DD
+      // Columnas que parecen fechas (registro iso + índice real)
       const dateCols = [];
-      const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-      labels.forEach((h,i)=>{ if(dateRe.test(h)) dateCols.push({i, label:h}); });
+      labels.forEach((h,i)=>{
+        const iso = headerToISO(h);
+        if(iso) dateCols.push({ i, label:h, iso });
+      });
 
       return { idxNombre, dateCols };
     }
 
-    // Estado en memoria
+    // ========= Estado =========
     let STATE = {
       rows: [],
       cols: [],
@@ -189,21 +216,24 @@
 
     function elegirFechaActiva(){
       const input = document.getElementById("filtroFecha");
-      const solicitada = input.value;
-      const setInput = (val)=>{ input.value = val; };
+      const solicitadaISO = input.value; // <input type="date"> usa ISO
 
-      if(STATE.dateCols.some(dc => dc.label===solicitada)){
-        STATE.activeDate = solicitada;
+      const idx = STATE.dateCols.findIndex(dc => dc.iso === solicitadaISO);
+      if(idx !== -1){
+        STATE.activeDate = solicitadaISO;
         return;
       }
+
       if(STATE.dateCols.length){
-        const latest = STATE.dateCols.map(dc=>dc.label).sort().at(-1);
+        // Más reciente por ISO (lexicográfico sirve en YYYY-MM-DD)
+        const latest = STATE.dateCols.map(dc=>dc.iso).sort().at(-1);
         STATE.activeDate = latest;
-        setInput(latest);
+        input.value = latest;
         return;
       }
+
       STATE.activeDate = "";
-      setInput("");
+      input.value = "";
     }
 
     function render(){
@@ -221,11 +251,12 @@
         return;
       }
 
-      const idxFechaCol = STATE.dateCols.find(dc => dc.label===STATE.activeDate)?.i;
-      if(idxFechaCol==null){
+      const target = STATE.dateCols.find(dc => dc.iso === STATE.activeDate);
+      if(!target){
         tabla.innerHTML = `<tr><td colspan="5">No se encontró la columna de la fecha seleccionada.</td></tr>`;
         return;
       }
+      const idxFechaCol = target.i;
 
       const showAll = document.getElementById("mostrarTodos")?.checked;
 
@@ -239,7 +270,7 @@
         if(Number.isNaN(puntos)) puntos = 0;
 
         if(puntos > 0 || showAll){
-          items.push({ fecha: STATE.activeDate, nombre, puntos });
+          items.push({ nombre, puntos });
         }
       }
 
@@ -252,12 +283,12 @@
         return;
       }
 
-      for(const {fecha, nombre, puntos} of items){
+      for(const {nombre, puntos} of items){
         const rango = obtenerRango(puntos);
         const recompensa = obtenerRecompensas(puntos);
         tabla.insertAdjacentHTML("beforeend", `
           <tr>
-            <td>${fecha}</td>
+            <td>${STATE.activeDate}</td>
             <td>${nombre}</td>
             <td>${puntos}</td>
             <td class="brillo">${rango}</td>
@@ -304,7 +335,7 @@
 
       }catch(err){
         console.error(err);
-        tabla.innerHTML = `<tr><td colspan="5">Error al cargar datos. Verifica que la hoja esté visible con enlace o publicada a la web.</td></tr>`;
+        tabla.innerHTML = `<tr><td colspan="5">Error al cargar datos. Verifica que la hoja esté compartida con enlace o publicada a la web, y que el GID sea el correcto.</td></tr>`;
       }
     }
 
