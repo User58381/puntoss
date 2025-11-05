@@ -1,300 +1,243 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Tabla de Puntos</title>
-  <style>
-    :root{
-      --bg:#fff; --fg:#111; --muted:#666; --accent:gold;
-    }
-    body{
-      font-family:'Comic Sans MS','Comic Sans','Comic Neue',cursive;
-      background:var(--bg); color:var(--fg);
-      text-align:center; margin:0; padding:0 0 40px;
-    }
-    h1{font-size:32px; margin:18px 0 6px;}
-    #fecha{
-      font-size:24px; font-weight:bold; margin:20px auto 12px; padding:10px 14px;
-      background:#f3f3f3; display:inline-block; border-radius:10px; border:1px solid #e5e5e5;
-    }
-    .controls{ display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:10px 0 8px; }
-    .controls input[type="date"], .controls input[type="text"]{
-      padding:8px 10px; border-radius:8px; border:1px solid #d0d0d0; font-size:16px;
-    }
-    .toggle{ background:#f7f7f7; border:1px solid #e0e0e0; padding:6px 12px; border-radius:999px; font-size:14px; display:inline-flex; align-items:center; gap:6px; }
-    #status{ margin:6px 0 12px; font-size:14px; color:var(--muted); }
-    table{
-      width:96%; max-width:1200px; margin:auto; border-collapse:collapse; background:#fff; color:var(--fg);
-      font-size:18px; border:1px solid #e0e0e0;
-    }
-    th,td{ padding:10px; border:1px solid #d6d6d6; text-align:center; }
-    thead th{ background:var(--accent); position:sticky; top:0; }
-    .brillo{ animation:brillo 1s infinite alternate; }
-    @keyframes brillo{ from{ text-shadow:0 0 4px gold,0 0 8px #ffd; } to{ text-shadow:0 0 10px gold,0 0 18px #ffd; } }
-  </style>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tabla de Puntos</title>
+<style>
+  body{font-family:"Comic Sans MS","Comic Sans","Comic Neue",cursive;background:#fff;color:#111;margin:0;text-align:center}
+  h1{margin:18px 0 6px;font-size:32px}
+  #fecha{margin:16px auto 10px;padding:8px 12px;border:1px solid #e5e5e5;border-radius:10px;background:#f7f7f7;font-weight:bold}
+  .controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0}
+  .controls input{padding:8px 10px;border:1px solid #d0d0d0;border-radius:8px}
+  .toggle{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #e0e0e0;border-radius:999px;background:#fafafa}
+  #status{font-size:14px;color:#666;margin:6px 0 12px}
+  table{width:96%;max-width:1200px;margin:auto;border-collapse:collapse;border:1px solid #e0e0e0;background:#fff}
+  th,td{border:1px solid #d6d6d6;padding:10px;text-align:center}
+  thead th{background:gold;position:sticky;top:0}
+</style>
 </head>
 <body>
   <h1>Tabla de Puntos</h1>
   <div id="fecha"></div>
-
   <div class="controls">
     <input type="date" id="filtroFecha" onchange="render()"/>
     <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
-    <label class="toggle">
-      <input type="checkbox" id="mostrarTodos" onchange="render()"/> Mostrar todos
-    </label>
+    <label class="toggle"><input type="checkbox" id="mostrarTodos" onchange="render()"/>Mostrar todos</label>
   </div>
-
   <div id="status">Cargando datos…</div>
-
   <table>
-    <thead>
-      <tr>
-        <th>Fecha</th><th>Alumno</th><th>Puntos</th><th>Rango</th><th>Recompensas</th>
-      </tr>
-    </thead>
-    <tbody id="tablaPuntos">
-      <tr><td colspan="5">Cargando datos...</td></tr>
-    </tbody>
+    <thead><tr><th>Fecha</th><th>Alumno</th><th>Puntos</th><th>Rango</th><th>Recompensas</th></tr></thead>
+    <tbody id="tablaPuntos"><tr><td colspan="5">Cargando…</td></tr></tbody>
   </table>
 
-  <script>
-    // ====== Config ======
-    const SHEET_ID = "1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
-    const GID = "0";
-    const DEBUG = true;
+<script>
+const SHEET_ID="1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
+const GID="0";
 
-    // ====== UI ======
-    function hoyISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
-    function actualizarCabecera(){
-      const fechaHoy = new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-      document.getElementById("fecha").innerHTML = `📅 Hoy es: <b>${fechaHoy}</b>`;
+function setStatus(t){ const el=document.getElementById("status"); if(el) el.textContent=t; console.log("[STATUS]",t); }
+function hoyISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` }
+function actualizarCabecera(){ document.getElementById("fecha").innerHTML=`📅 Hoy es: <b>${new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</b>` }
+function obtenerRango(p){ if(p>=90)return"🌈🔥 Gran maestro arcoiris"; if(p>=80)return"🌈 Heroico arcoiris"; if(p>=70)return"🟠🔥 Heroico élite"; if(p>=60)return"🟡 Heroico"; if(p>=50)return"🔴 Gran Maestro"; if(p>=40)return"🟠 Maestro"; if(p>=30)return"🟣 Experto"; if(p>=20)return"🔵 Avanzado"; if(p>=10)return"🟢 Trabajador"; return"⚪ Sin rango" }
+function obtenerRecompensas(p){ const G=Math.floor(p/30), S=Math.floor((p%30)/10); let r="✨"; for(let i=0;i<G;i++)r+="🌟"; for(let i=0;i<S;i++)r+="⭐"; if(p>=70)r+=" 🌌"; if(p>=90)r+=" 🌈"; return r }
+function filtrarTabla(){ const f=document.getElementById("filtroFecha").value, n=(document.getElementById("buscador").value||"").toLowerCase().trim(); document.querySelectorAll("#tablaPuntos tr").forEach(tr=>{ const F=tr.cells[0]?.innerText||"", N=(tr.cells[1]?.innerText||"").toLowerCase(); tr.style.display=(!f||F===f) && (!n||N.includes(n)) ? "" : "none"; }); }
+
+function headerToISO(h){
+  if(!h) return null; h=String(h).trim();
+  let m=h.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/); if(m){const[_,Y,M,D]=m; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`}
+  m=h.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/); if(m){let[_,D,M,Y]=m; if(Y.length===2)Y=`20${Y}`; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`}
+  return null
+}
+function getCell(row,idx){ const c=row.c?.[idx]; return c ? (c.f ?? (typeof c.v==="string"?c.v:String(c.v??""))).toString().trim() : "" }
+function getCellRaw(row,idx){ const c=row.c?.[idx]; return c ? c.v : null }
+
+/* === Detecta si la PRIMERA FILA es encabezado real (con fechas) === */
+function detectHeaderRow(data){
+  const rows=data.table?.rows||[], cols=data.table?.cols||[];
+  if(!rows.length) return {headerRowIdx:-1, labelsFrom:"cols"};
+
+  // 0) Si cols ya traen labels con texto útil, úsalo
+  const colLabels=cols.map(c=>(c.label||"").trim());
+  const hasAnyLabel=colLabels.some(l=>l);
+  // 1) ¿La fila 0 parece encabezado? (contiene 'Nombre del alumno' o varias celdas con fecha)
+  const r0=rows[0];
+  const c0=(getCell(r0,0)||"").toLowerCase();
+  let fechaCount=0;
+  for(let i=0;i<cols.length;i++){
+    const v=getCell(r0,i);
+    const raw=getCellRaw(r0,i);
+    const iso = headerToISO(v) || (typeof raw==="number" && (data.table.cols[i]?.pattern||"").includes("yyyy") ? (getCell(r0,i)) : null) || (typeof raw==="string" && raw.startsWith("Date(") ? (getCell(r0,i)) : null);
+    if(iso) fechaCount++;
+  }
+  const r0IsHeader = c0.includes("nombre") || fechaCount>=2;
+
+  if(r0IsHeader) return {headerRowIdx:0, labelsFrom:"row"};
+  if(hasAnyLabel) return {headerRowIdx:-1, labelsFrom:"cols"};
+
+  // 2) Fallback: si no hay labels y la fila 0 no convenció, intenta fila 1
+  if(rows.length>1){
+    const r1=rows[1];
+    const c1=(getCell(r1,0)||"").toLowerCase();
+    let f1=0;
+    for(let i=0;i<cols.length;i++){
+      const v=getCell(r1,i), raw=getCellRaw(r1,i);
+      const iso = headerToISO(v) || (typeof raw==="number" && (data.table.cols[i]?.pattern||"").includes("yyyy") ? (getCell(r1,i)) : null) || (typeof raw==="string" && raw.startsWith("Date(") ? (getCell(r1,i)) : null);
+      if(iso) f1++;
     }
-    function setStatus(msg){ const el=document.getElementById("status"); if(el) el.textContent=msg; if(DEBUG) console.log("[STATUS]", msg); }
+    if(c1.includes("nombre") || f1>=2) return {headerRowIdx:1, labelsFrom:"row"};
+  }
+  // Último recurso
+  return {headerRowIdx:-1, labelsFrom:"cols"};
+}
 
-    // ====== Rangos / Recompensas ======
-    function obtenerRango(p){
-      if(p>=90) return "🌈🔥 Gran maestro arcoiris";
-      if(p>=80) return "🌈 Heroico arcoiris";
-      if(p>=70) return "🟠🔥 Heroico élite";
-      if(p>=60) return "🟡 Heroico";
-      if(p>=50) return "🔴 Gran Maestro";
-      if(p>=40) return "🟠 Maestro";
-      if(p>=30) return "🟣 Experto";
-      if(p>=20) return "🔵 Avanzado";
-      if(p>=10) return "🟢 Trabajador";
-      return "⚪ Sin rango";
-    }
-    function obtenerRecompensas(p){
-      const grandes=Math.floor(p/30), pequenas=Math.floor((p%30)/10);
-      let r="✨"; for(let i=0;i<grandes;i++) r+="🌟"; for(let i=0;i<pequenas;i++) r+="⭐";
-      if(p>=70) r+=" 🌌"; if(p>=90) r+=" 🌈"; return r;
-    }
+/* === Estructura: nombre + fechas === */
+function detectarEstructura(data){
+  const rows=data.table?.rows||[], cols=data.table?.cols||[];
+  const {headerRowIdx, labelsFrom}=detectHeaderRow(data);
 
-    // ====== Filtro UI ======
-    function filtrarTabla(){
-      const filtroFecha=document.getElementById("filtroFecha").value;
-      const filtroNombre=document.getElementById("buscador").value.toLowerCase().trim();
-      document.querySelectorAll("#tablaPuntos tr").forEach(fila=>{
-        const fecha=fila.cells[0]?.innerText||"", nombre=(fila.cells[1]?.innerText||"").toLowerCase();
-        const okF=!filtroFecha||fecha===filtroFecha, okN=!filtroNombre||nombre.includes(filtroNombre);
-        fila.style.display=(okF && okN) ? "" : "none";
-      });
-    }
+  let labels=[], dataStart=0;
+  if(labelsFrom==="row" && headerRowIdx>=0){
+    labels = cols.map((_,i)=> getCell(rows[headerRowIdx], i));
+    dataStart = headerRowIdx+1; // omite la fila-encabezado
+  }else{
+    labels = cols.map(c=>(c.label||"").toString().trim());
+    dataStart = 0;
+  }
 
-    // ====== Normalización de encabezados de fecha ======
-    function headerToISO(h){
-      if(!h) return null; h=String(h).trim();
-      let m=h.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
-      if(m){ const [_,Y,M,D]=m; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`; }
-      m=h.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
-      if(m){ let [_,D,M,Y]=m; if(Y.length===2) Y=`20${Y}`; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`; }
-      return null;
-    }
+  // idx nombre
+  let idxNombre = labels.findIndex(h=>/^nombre del alumno$/i.test(h||""));
+  if(idxNombre===-1) idxNombre = labels.findIndex(h=>/(^|\s)(nombre|alumno|estudiante)(\s|$)/i.test(h||""));
+  if(idxNombre===-1) idxNombre = 0;
 
-    // ====== Estado ======
-    let STATE={ rows:[], cols:[], idxNombre:0, dateCols:[], activeDate:null };
-
-    function getCell(row, idx){ const c=row.c?.[idx]; if(!c) return ""; return (c.f ?? c.v ?? "").toString().trim(); }
-
-    function detectarEstructuraTablero(cols){
-      const labels=cols.map(c=>(c.label||"").toString().trim());
-      let idxNombre=labels.findIndex(h=>/^nombre del alumno$/i.test(h));
-      if(idxNombre===-1) idxNombre=labels.findIndex(h=>/nombre|alumno|estudiante/i.test(h));
-      if(idxNombre===-1) idxNombre=0;
-      const dateCols=[];
-      labels.forEach((h,i)=>{ const iso=headerToISO(h); if(iso) dateCols.push({i,label:h,iso}); });
-      return { idxNombre, dateCols };
-    }
-
-    function elegirFechaActiva(){
-      const input=document.getElementById("filtroFecha");
-      const solicitadaISO=input.value;
-      const i=STATE.dateCols.findIndex(dc=>dc.iso===solicitadaISO);
-      if(i!==-1){ STATE.activeDate=solicitadaISO; return; }
-      if(STATE.dateCols.length){
-        const latest=STATE.dateCols.map(dc=>dc.iso).sort().at(-1);
-        STATE.activeDate=latest; input.value=latest; return;
-      }
-      STATE.activeDate=""; input.value="";
-    }
-
-    function render(){
-      const tabla=document.getElementById("tablaPuntos");
-      tabla.innerHTML="";
-      if(!STATE.rows.length){ tabla.innerHTML=`<tr><td colspan="5">No hay datos</td></tr>`; return; }
-      elegirFechaActiva();
-      if(!STATE.activeDate){ tabla.innerHTML=`<tr><td colspan="5">No hay columnas de fecha (YYYY-MM-DD)</td></tr>`; return; }
-      const target=STATE.dateCols.find(dc=>dc.iso===STATE.activeDate);
-      if(!target){ tabla.innerHTML=`<tr><td colspan="5">No se encontró la columna de la fecha seleccionada.</td></tr>`; return; }
-      const idxFechaCol=target.i, showAll=document.getElementById("mostrarTodos")?.checked;
-      const items=[];
-      for(const r of STATE.rows){
-        const nombre=getCell(r, STATE.idxNombre)||"Alumno";
-        if(!nombre) continue;
-        let puntosRaw=getCell(r, idxFechaCol);
-        let puntos=parseInt(String(puntosRaw).replace(/[^\d-]/g,""),10);
-        if(Number.isNaN(puntos)) puntos=0;
-        if(puntos>0 || showAll) items.push({nombre, puntos});
-      }
-      items.sort((a,b)=> b.puntos-a.puntos || a.nombre.localeCompare(b.nombre));
-      if(!items.length){ tabla.innerHTML=`<tr><td colspan="5">No hay alumnos para ${STATE.activeDate}.</td></tr>`; return; }
-      for(const {nombre,puntos} of items){
-        const rango=obtenerRango(puntos), recompensa=obtenerRecompensas(puntos);
-        tabla.insertAdjacentHTML("beforeend", `
-          <tr>
-            <td>${STATE.activeDate}</td>
-            <td>${nombre}</td>
-            <td>${puntos}</td>
-            <td class="brillo">${rango}</td>
-            <td class="brillo">${recompensa}</td>
-          </tr>`);
-      }
-      filtrarTabla();
-    }
-
-    // ====== Parsers CSV / GViz ======
-    function parseCSVtoGVizLike(csv){
-      const rows = csv.split(/\r?\n/).filter(r=>r.length>0).map(r=>{
-        const out=[]; let cur=""; let inQ=false;
-        for(let i=0;i<r.length;i++){
-          const ch=r[i], nx=r[i+1];
-          if(ch==='"' && nx==='"'){ cur+='"'; i++; continue; }
-          if(ch==='"'){ inQ=!inQ; continue; }
-          if(ch===',' && !inQ){ out.push(cur); cur=""; continue; }
-          cur+=ch;
+  // columnas de fecha: por label, o por la celda del encabezado (row header) o por meta de la col
+  const dateCols=[];
+  for(let i=0;i<cols.length;i++){
+    let iso = headerToISO(labels[i]||"");
+    if(!iso && labelsFrom==="row" && headerRowIdx>=0){
+      const vHead = getCell(rows[headerRowIdx], i);
+      const rawHead= getCellRaw(rows[headerRowIdx], i);
+      iso = headerToISO(vHead);
+      // Si es tipo date/serial con 'f', toma el formateado:
+      if(!iso){
+        const pat = (data.table.cols[i]?.pattern||"");
+        if(typeof rawHead==="number" && pat.includes("yyyy")) iso = (getCell(rows[headerRowIdx], i)); // ya viene como f:"2025-10-03"
+        if(typeof rawHead==="string" && rawHead.startsWith("Date(")){
+          // f suele traer "yyyy-mm-dd"
+          const f = getCell(rows[headerRowIdx], i);
+          iso = headerToISO(f)||f;
         }
-        out.push(cur); return out;
-      });
-      if(rows.length===0) return { table:{ cols:[], rows:[] } };
-      const cols=rows[0]||[];
-      const data=rows.slice(1).map(r=>({ c: cols.map((_,i)=>({ v:r[i]??"" })) }));
-      return { table:{ cols: cols.map(h=>({label:h})), rows:data } };
+      }
     }
+    if(iso) dateCols.push({i, iso});
+  }
 
-    // ====== 1) GViz por JSONP (sin CORS) ======
-    function fetchGVizJSONP(){
-      return new Promise((resolve,reject)=>{
-        const tq = encodeURIComponent('select *');
-        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${GID}&tqx=out:json&tq=${tq}`;
-        // Prepara hook JSONP
-        window.google = window.google || {};
-        window.google.visualization = window.google.visualization || {};
-        const original = window.google.visualization.Query?.setResponse;
-        window.google.visualization.Query = window.google.visualization.Query || {};
-        window.google.visualization.Query.setResponse = function(obj){
-          try{
-            if(obj.status && obj.status.toLowerCase()!=='ok'){
-              const detalle = obj.errors?.[0]?.detailed_message || obj.errors?.[0]?.message || obj.status;
-              reject(new Error(`GViz error: ${detalle}`));
-            }else{
-              setStatus("Cargado vía GViz (JSONP)");
-              resolve(obj);
-            }
-          }finally{
-            cleanup();
-          }
-        };
-        // Inyecta <script>
-        const s = document.createElement('script');
-        s.src = url; s.async = true;
-        s.onerror = ()=>{ cleanup(); reject(new Error("GViz JSONP onerror (¿permisos?)")); };
-        document.head.appendChild(s);
+  return { idxNombre, dateCols, dataStart };
+}
 
-        // Timeout por si no llama al callback (p.ej. sin permisos)
-        const to = setTimeout(()=>{ cleanup(); reject(new Error("GViz JSONP timeout (¿permisos?)")); }, 8000);
+let STATE={ rows:[], idxNombre:0, dateCols:[], activeDate:null };
 
-        function cleanup(){
-          clearTimeout(to);
-          if(s && s.parentNode) s.parentNode.removeChild(s);
-          // restaura
-          if(original) window.google.visualization.Query.setResponse = original;
-        }
-      });
-    }
+function elegirFechaActiva(){
+  const input=document.getElementById("filtroFecha");
+  const want=input.value;
+  const hit=STATE.dateCols.find(dc=>dc.iso===want);
+  if(hit){ STATE.activeDate=want; return; }
+  if(STATE.dateCols.length){
+    const latest=STATE.dateCols.map(dc=>dc.iso).sort().at(-1);
+    STATE.activeDate=latest; input.value=latest; return;
+  }
+  STATE.activeDate=""; input.value="";
+}
 
-    // ====== 2) CSV export ======
-    async function fetchCSV(){
-      const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-      const res=await fetch(url,{mode:'cors'});
-      if(!res.ok) throw new Error(`CSV HTTP ${res.status}`);
-      const csv=await res.text();
-      setStatus("Cargado vía CSV (export)");
-      return parseCSVtoGVizLike(csv);
-    }
+function render(){
+  const tbody=document.getElementById("tablaPuntos"); tbody.innerHTML="";
+  if(!STATE.rows.length){ tbody.innerHTML=`<tr><td colspan="5">No hay datos</td></tr>`; return }
+  elegirFechaActiva();
+  if(!STATE.activeDate){ tbody.innerHTML=`<tr><td colspan="5">No hay columnas de fecha (YYYY-MM-DD)</td></tr>`; return }
+  const target=STATE.dateCols.find(dc=>dc.iso===STATE.activeDate);
+  if(!target){ tbody.innerHTML=`<tr><td colspan="5">No se encontró la fecha seleccionada</td></tr>`; return }
+  const idxFechaCol=target.i, showAll=document.getElementById("mostrarTodos")?.checked;
+  const items=[];
+  for(const r of STATE.rows){
+    const nombre = getCell(r, STATE.idxNombre)||"Alumno";
+    if(!nombre) continue;
+    let puntos = parseInt(String(getCell(r, idxFechaCol)).replace(/[^\d-]/g,""),10);
+    if(Number.isNaN(puntos)) puntos=0;
+    if(puntos>0 || showAll) items.push({nombre,puntos});
+  }
+  items.sort((a,b)=> b.puntos-a.puntos || a.nombre.localeCompare(b.nombre));
+  if(!items.length){ tbody.innerHTML=`<tr><td colspan="5">No hay alumnos para ${STATE.activeDate}</td></tr>`; return }
+  for(const {nombre,puntos} of items){
+    tbody.insertAdjacentHTML("beforeend",`
+      <tr>
+        <td>${STATE.activeDate}</td>
+        <td>${nombre}</td>
+        <td>${puntos}</td>
+        <td>${obtenerRango(puntos)}</td>
+        <td>${obtenerRecompensas(puntos)}</td>
+      </tr>`);
+  }
+  filtrarTabla();
+}
 
-    // ====== 3) CSV publicar en la web ======
-    async function fetchPubCSV(){
-      const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID}&single=true&output=csv`;
-      const res=await fetch(url,{mode:'cors'});
-      if(!res.ok) throw new Error(`PUB CSV HTTP ${res.status}`);
-      const csv=await res.text();
-      setStatus("Cargado vía CSV (Publicar en la web)");
-      return parseCSVtoGVizLike(csv);
-    }
-
-    async function cargar(){
-      actualizarCabecera();
-      document.getElementById("filtroFecha").value = hoyISO();
-      const tabla=document.getElementById("tablaPuntos");
-      tabla.innerHTML=`<tr><td colspan="5">Cargando datos...</td></tr>`;
-
+/* === GViz JSONP (sin CORS) + CSV export + CSV publicado === */
+function parseCSVtoGVizLike(csv){
+  const rows=csv.split(/\r?\n/).filter(Boolean).map(r=>{const out=[];let cur="",q=false;for(let i=0;i<r.length;i++){const ch=r[i],nx=r[i+1]; if(ch=='"'&&nx=='"'){cur+='"';i++;continue} if(ch=='"'){q=!q;continue} if(ch==','&&!q){out.push(cur);cur="";continue} cur+=ch} out.push(cur); return out});
+  if(!rows.length) return {table:{cols:[],rows:[]}}; const cols=rows[0]; const data=rows.slice(1).map(r=>({ c: cols.map((_,i)=>({ v:r[i]??"" })) }));
+  return {table:{ cols: cols.map(h=>({label:h})), rows:data }};
+}
+function fetchGVizJSONP(){
+  return new Promise((resolve,reject)=>{
+    const tq=encodeURIComponent('select *');
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${GID}&tqx=out:json&tq=${tq}`;
+    window.google=window.google||{}; window.google.visualization=window.google.visualization||{};
+    const old=window.google.visualization.Query?.setResponse;
+    window.google.visualization.Query=window.google.visualization.Query||{};
+    window.google.visualization.Query.setResponse=function(obj){
       try{
-        let data;
-        try{
-          data = await fetchGVizJSONP();         // 1) JSONP (evita CORS)
-        }catch(e1){
-          console.warn("GViz JSONP falló → probando CSV export…", e1);
-          try{
-            data = await fetchCSV();             // 2) export CSV (requiere compartir: lector)
-          }catch(e2){
-            console.warn("CSV export falló → probando CSV publicar…", e2);
-            data = await fetchPubCSV();          // 3) publicar en la web CSV
-          }
-        }
+        if(obj.status && obj.status.toLowerCase()!=='ok'){
+          const e=obj.errors?.[0]?.detailed_message||obj.errors?.[0]?.message||obj.status; reject(new Error("GViz error: "+e));
+        } else { setStatus("Cargado vía GViz (JSONP)"); resolve(obj); }
+      } finally { if(old) window.google.visualization.Query.setResponse=old; }
+    };
+    const s=document.createElement("script"); s.src=url; s.async=true;
+    s.onerror=()=>{ if(old) window.google.visualization.Query.setResponse=old; reject(new Error("GViz JSONP onerror (¿permisos?)")) };
+    document.head.appendChild(s);
+    setTimeout(()=>{ if(window.google.visualization.Query.setResponse===old) return; window.google.visualization.Query.setResponse=old; reject(new Error("GViz JSONP timeout")); },8000);
+  });
+}
+async function fetchCSV(){ const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`; const r=await fetch(url,{mode:'cors'}); if(!r.ok) throw new Error("CSV HTTP "+r.status); setStatus("Cargado vía CSV (export)"); return parseCSVtoGVizLike(await r.text()); }
+async function fetchPubCSV(){ const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID}&single=true&output=csv`; const r=await fetch(url,{mode:'cors'}); if(!r.ok) throw new Error("PUB CSV HTTP "+r.status); setStatus("Cargado vía CSV (Publicar en la web)"); return parseCSVtoGVizLike(await r.text()); }
 
-        const cols = data.table?.cols || [];
-        const rows = data.table?.rows || [];
-        if(!rows.length){ setStatus("Sin filas en la hoja."); tabla.innerHTML=`<tr><td colspan="5">Sin filas en la hoja.</td></tr>`; return; }
-
-        const { idxNombre, dateCols } = detectarEstructuraTablero(cols);
-        STATE.rows=rows; STATE.cols=cols; STATE.idxNombre=idxNombre; STATE.dateCols=dateCols;
-        if(!dateCols.length){ setStatus("No hay encabezados de fecha válidos. Usa 2025-11-04 o 04/11/2025 en los encabezados."); }
-        render();
-
-      }catch(err){
-        console.error(err);
-        setStatus("Error al cargar (permisos/gid). Comparte como 'Cualquiera con el enlace → Lector' o usa 'Publicar en la web'.");
-        tabla.innerHTML = `<tr><td colspan="5">
-          Error al cargar datos.<br>1) Comprueba permisos: <b>Compartir → Cualquiera con el enlace → Lector</b>.<br>
-          2) (Opcional) <b>Archivo → Publicar en la web → Hoja actual → CSV</b>.<br>
-          3) Verifica <b>gid=${GID}</b> coincide con la pestaña correcta.
-        </td></tr>`;
+async function cargar(){
+  actualizarCabecera();
+  document.getElementById("filtroFecha").value=hoyISO();
+  const tbody=document.getElementById("tablaPuntos"); tbody.innerHTML=`<tr><td colspan="5">Cargando…</td></tr>`;
+  try{
+    let data;
+    try{ data=await fetchGVizJSONP(); }
+    catch(e1){ console.warn("GViz JSONP falló → CSV export", e1);
+      try{ data=await fetchCSV(); }
+      catch(e2){ console.warn("CSV export falló → CSV publicar", e2);
+        data=await fetchPubCSV();
       }
     }
+    const det=detectarEstructura(data);
+    const allRows=data.table?.rows||[];
+    STATE.rows = (det.dataStart>0) ? allRows.slice(det.dataStart) : allRows;
+    STATE.idxNombre = det.idxNombre;
+    STATE.dateCols  = det.dateCols;
 
-    cargar();
-  </script>
+    if(!STATE.rows.length) { setStatus("Sin filas en la hoja."); tbody.innerHTML=`<tr><td colspan="5">Sin filas</td></tr>`; return; }
+    if(!STATE.dateCols.length){ setStatus("No hay encabezados de fecha válidos. Usa 2025-11-04 o 04/11/2025 en la fila de encabezado."); }
+
+    render();
+  }catch(err){
+    console.error(err);
+    setStatus("Error al cargar (permisos/gid). Comparte como 'Cualquiera con el enlace → Lector' o usa 'Publicar en la web'.");
+    tbody.innerHTML=`<tr><td colspan="5">Error de carga. Revisa permisos y gid=${GID}.</td></tr>`;
+  }
+}
+
+cargar();
+</script>
 </body>
 </html>
