@@ -1,62 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Tabla de Puntos</title>
   <style>
-    /* Tema claro (fondo blanco) */
     :root{
-      --bg: #ffffff;
-      --fg: #111111;
-      --card: #ffffff;
-      --muted: #666;
-      --border: #000;
-      --accent: gold;
+      --bg:#fff; --fg:#111; --muted:#666; --accent:gold;
     }
     body{
-      font-family: 'Comic Sans MS','Comic Sans','Comic Neue',cursive;
-      text-align:center;
-      background: var(--bg);
-      color: var(--fg);
-      margin:0; padding:0 0 40px;
-    }
-    #fecha{
-      font-size:24px;font-weight:bold;margin:20px auto 12px; padding:10px 14px;
-      background:#f3f3f3; display:inline-block; border-radius:10px; border:1px solid #e5e5e5;
+      font-family:'Comic Sans MS','Comic Sans','Comic Neue',cursive;
+      background:var(--bg); color:var(--fg);
+      text-align:center; margin:0; padding:0 0 40px;
     }
     h1{font-size:32px; margin:18px 0 6px;}
-    .controls{
-      display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:10px 0 8px;
+    #fecha{
+      font-size:24px; font-weight:bold; margin:20px auto 12px; padding:10px 14px;
+      background:#f3f3f3; display:inline-block; border-radius:10px; border:1px solid #e5e5e5;
     }
-    .controls input[type="date"],
-    .controls input[type="text"]{
+    .controls{ display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:10px 0 8px; }
+    .controls input[type="date"], .controls input[type="text"]{
       padding:8px 10px; border-radius:8px; border:1px solid #d0d0d0; font-size:16px;
     }
-    .toggle{
-      background:#f7f7f7; border:1px solid #e0e0e0;
-      padding:6px 12px; border-radius:999px; font-size:14px; display:inline-flex; align-items:center; gap:6px;
-    }
-    #status{
-      margin:6px 0 12px; font-size:14px; color: var(--muted);
-    }
+    .toggle{ background:#f7f7f7; border:1px solid #e0e0e0; padding:6px 12px; border-radius:999px; font-size:14px; display:inline-flex; align-items:center; gap:6px; }
+    #status{ margin:6px 0 12px; font-size:14px; color:var(--muted); }
     table{
-      width: 96%;
-      max-width: 1200px;
-      margin: auto;
-      border-collapse: collapse;
-      background: var(--card);
-      color: var(--fg);
-      font-size: 18px;
-      border: 1px solid #e0e0e0;
+      width:96%; max-width:1200px; margin:auto; border-collapse:collapse; background:#fff; color:var(--fg);
+      font-size:18px; border:1px solid #e0e0e0;
     }
     th,td{ padding:10px; border:1px solid #d6d6d6; text-align:center; }
-    thead th{ background: var(--accent); position: sticky; top: 0; }
-    .brillo{ animation: brillo 1s infinite alternate; }
-    @keyframes brillo{
-      from{ text-shadow:0 0 4px gold, 0 0 8px #ffd; }
-      to{   text-shadow:0 0 10px gold,0 0 18px #ffd; }
-    }
+    thead th{ background:var(--accent); position:sticky; top:0; }
+    .brillo{ animation:brillo 1s infinite alternate; }
+    @keyframes brillo{ from{ text-shadow:0 0 4px gold,0 0 8px #ffd; } to{ text-shadow:0 0 10px gold,0 0 18px #ffd; } }
   </style>
 </head>
 <body>
@@ -67,8 +42,7 @@
     <input type="date" id="filtroFecha" onchange="render()"/>
     <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
     <label class="toggle">
-      <input type="checkbox" id="mostrarTodos" onchange="render()"/>
-      Mostrar todos
+      <input type="checkbox" id="mostrarTodos" onchange="render()"/> Mostrar todos
     </label>
   </div>
 
@@ -77,11 +51,7 @@
   <table>
     <thead>
       <tr>
-        <th>Fecha</th>
-        <th>Alumno</th>
-        <th>Puntos</th>
-        <th>Rango</th>
-        <th>Recompensas</th>
+        <th>Fecha</th><th>Alumno</th><th>Puntos</th><th>Rango</th><th>Recompensas</th>
       </tr>
     </thead>
     <tbody id="tablaPuntos">
@@ -90,71 +60,123 @@
   </table>
 
   <script>
-    // ========= Config =========
+    // ====== Config ======
     const SHEET_ID = "1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
-    const GID = "0"; // Cambia si tu pestaña no es la 0
+    const GID = "0";
     const DEBUG = true;
 
-    // ========= Utilidades fecha =========
-    function hoyISO(){
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,"0");
-      const day = String(d.getDate()).padStart(2,"0");
-      return `${y}-${m}-${day}`;
-    }
+    // ====== UI ======
+    function hoyISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
     function actualizarCabecera(){
-      const opciones = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
-      const fechaHoy = new Date().toLocaleDateString('es-ES', opciones);
+      const fechaHoy = new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
       document.getElementById("fecha").innerHTML = `📅 Hoy es: <b>${fechaHoy}</b>`;
     }
-    function setStatus(msg){
-      const el = document.getElementById("status");
-      if(el) el.textContent = msg;
-      if(DEBUG) console.log("[STATUS]", msg);
-    }
+    function setStatus(msg){ const el=document.getElementById("status"); if(el) el.textContent=msg; if(DEBUG) console.log("[STATUS]", msg); }
 
-    // ========= Rangos / Recompensas =========
-    function obtenerRango(puntos){
-      if(puntos>=90) return "🌈🔥 Gran maestro arcoiris";
-      if(puntos>=80) return "🌈 Heroico arcoiris";
-      if(puntos>=70) return "🟠🔥 Heroico élite";
-      if(puntos>=60) return "🟡 Heroico";
-      if(puntos>=50) return "🔴 Gran Maestro";
-      if(puntos>=40) return "🟠 Maestro";
-      if(puntos>=30) return "🟣 Experto";
-      if(puntos>=20) return "🔵 Avanzado";
-      if(puntos>=10) return "🟢 Trabajador";
+    // ====== Rangos / Recompensas ======
+    function obtenerRango(p){
+      if(p>=90) return "🌈🔥 Gran maestro arcoiris";
+      if(p>=80) return "🌈 Heroico arcoiris";
+      if(p>=70) return "🟠🔥 Heroico élite";
+      if(p>=60) return "🟡 Heroico";
+      if(p>=50) return "🔴 Gran Maestro";
+      if(p>=40) return "🟠 Maestro";
+      if(p>=30) return "🟣 Experto";
+      if(p>=20) return "🔵 Avanzado";
+      if(p>=10) return "🟢 Trabajador";
       return "⚪ Sin rango";
     }
-    function obtenerRecompensas(puntos){
-      const grandes = Math.floor(puntos/30);
-      const pequenas = Math.floor((puntos%30)/10);
-      let r = "✨";
-      for(let i=0;i<grandes;i++) r+="🌟";
-      for(let i=0;i<pequenas;i++) r+="⭐";
-      if(puntos>=70) r+=" 🌌";
-      if(puntos>=90) r+=" 🌈";
-      return r;
+    function obtenerRecompensas(p){
+      const grandes=Math.floor(p/30), pequenas=Math.floor((p%30)/10);
+      let r="✨"; for(let i=0;i<grandes;i++) r+="🌟"; for(let i=0;i<pequenas;i++) r+="⭐";
+      if(p>=70) r+=" 🌌"; if(p>=90) r+=" 🌈"; return r;
     }
 
-    // ========= Filtro UI =========
+    // ====== Filtro UI ======
     function filtrarTabla(){
-      const filtroFecha = document.getElementById("filtroFecha").value;
-      const filtroNombre = document.getElementById("buscador").value.toLowerCase().trim();
-      const filas = document.querySelectorAll("#tablaPuntos tr");
-      filas.forEach(fila=>{
-        const fecha = fila.cells[0]?.innerText || "";
-        const nombre = (fila.cells[1]?.innerText || "").toLowerCase();
-        const okFecha = !filtroFecha || fecha===filtroFecha;
-        const okNombre = !filtroNombre || nombre.includes(filtroNombre);
-        fila.style.display = (okFecha && okNombre) ? "" : "none";
+      const filtroFecha=document.getElementById("filtroFecha").value;
+      const filtroNombre=document.getElementById("buscador").value.toLowerCase().trim();
+      document.querySelectorAll("#tablaPuntos tr").forEach(fila=>{
+        const fecha=fila.cells[0]?.innerText||"", nombre=(fila.cells[1]?.innerText||"").toLowerCase();
+        const okF=!filtroFecha||fecha===filtroFecha, okN=!filtroNombre||nombre.includes(filtroNombre);
+        fila.style.display=(okF && okN) ? "" : "none";
       });
     }
 
-    // ========= Parsers CSV / GViz =========
+    // ====== Normalización de encabezados de fecha ======
+    function headerToISO(h){
+      if(!h) return null; h=String(h).trim();
+      let m=h.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+      if(m){ const [_,Y,M,D]=m; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`; }
+      m=h.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+      if(m){ let [_,D,M,Y]=m; if(Y.length===2) Y=`20${Y}`; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`; }
+      return null;
+    }
+
+    // ====== Estado ======
+    let STATE={ rows:[], cols:[], idxNombre:0, dateCols:[], activeDate:null };
+
+    function getCell(row, idx){ const c=row.c?.[idx]; if(!c) return ""; return (c.f ?? c.v ?? "").toString().trim(); }
+
+    function detectarEstructuraTablero(cols){
+      const labels=cols.map(c=>(c.label||"").toString().trim());
+      let idxNombre=labels.findIndex(h=>/^nombre del alumno$/i.test(h));
+      if(idxNombre===-1) idxNombre=labels.findIndex(h=>/nombre|alumno|estudiante/i.test(h));
+      if(idxNombre===-1) idxNombre=0;
+      const dateCols=[];
+      labels.forEach((h,i)=>{ const iso=headerToISO(h); if(iso) dateCols.push({i,label:h,iso}); });
+      return { idxNombre, dateCols };
+    }
+
+    function elegirFechaActiva(){
+      const input=document.getElementById("filtroFecha");
+      const solicitadaISO=input.value;
+      const i=STATE.dateCols.findIndex(dc=>dc.iso===solicitadaISO);
+      if(i!==-1){ STATE.activeDate=solicitadaISO; return; }
+      if(STATE.dateCols.length){
+        const latest=STATE.dateCols.map(dc=>dc.iso).sort().at(-1);
+        STATE.activeDate=latest; input.value=latest; return;
+      }
+      STATE.activeDate=""; input.value="";
+    }
+
+    function render(){
+      const tabla=document.getElementById("tablaPuntos");
+      tabla.innerHTML="";
+      if(!STATE.rows.length){ tabla.innerHTML=`<tr><td colspan="5">No hay datos</td></tr>`; return; }
+      elegirFechaActiva();
+      if(!STATE.activeDate){ tabla.innerHTML=`<tr><td colspan="5">No hay columnas de fecha (YYYY-MM-DD)</td></tr>`; return; }
+      const target=STATE.dateCols.find(dc=>dc.iso===STATE.activeDate);
+      if(!target){ tabla.innerHTML=`<tr><td colspan="5">No se encontró la columna de la fecha seleccionada.</td></tr>`; return; }
+      const idxFechaCol=target.i, showAll=document.getElementById("mostrarTodos")?.checked;
+      const items=[];
+      for(const r of STATE.rows){
+        const nombre=getCell(r, STATE.idxNombre)||"Alumno";
+        if(!nombre) continue;
+        let puntosRaw=getCell(r, idxFechaCol);
+        let puntos=parseInt(String(puntosRaw).replace(/[^\d-]/g,""),10);
+        if(Number.isNaN(puntos)) puntos=0;
+        if(puntos>0 || showAll) items.push({nombre, puntos});
+      }
+      items.sort((a,b)=> b.puntos-a.puntos || a.nombre.localeCompare(b.nombre));
+      if(!items.length){ tabla.innerHTML=`<tr><td colspan="5">No hay alumnos para ${STATE.activeDate}.</td></tr>`; return; }
+      for(const {nombre,puntos} of items){
+        const rango=obtenerRango(puntos), recompensa=obtenerRecompensas(puntos);
+        tabla.insertAdjacentHTML("beforeend", `
+          <tr>
+            <td>${STATE.activeDate}</td>
+            <td>${nombre}</td>
+            <td>${puntos}</td>
+            <td class="brillo">${rango}</td>
+            <td class="brillo">${recompensa}</td>
+          </tr>`);
+      }
+      filtrarTabla();
+    }
+
+    // ====== Parsers CSV / GViz ======
     function parseCSVtoGVizLike(csv){
-      const rows = csv.split(/\r?\n/).filter(r => r.length>0).map(r=>{
+      const rows = csv.split(/\r?\n/).filter(r=>r.length>0).map(r=>{
         const out=[]; let cur=""; let inQ=false;
         for(let i=0;i<r.length;i++){
           const ch=r[i], nx=r[i+1];
@@ -163,234 +185,115 @@
           if(ch===',' && !inQ){ out.push(cur); cur=""; continue; }
           cur+=ch;
         }
-        out.push(cur);
-        return out;
+        out.push(cur); return out;
       });
       if(rows.length===0) return { table:{ cols:[], rows:[] } };
-      const cols = rows[0] || [];
-      const data = rows.slice(1).map(r => ({ c: cols.map((_,i)=> ({ v: r[i]??"" })) }));
-      return { table: { cols: cols.map(h=>({label:h})), rows: data } };
+      const cols=rows[0]||[];
+      const data=rows.slice(1).map(r=>({ c: cols.map((_,i)=>({ v:r[i]??"" })) }));
+      return { table:{ cols: cols.map(h=>({label:h})), rows:data } };
     }
 
-    // ========= Lectura robusta de Sheets =========
-    async function fetchGViz(){
-      const tq = encodeURIComponent('select *'); // evita INVALID_QUERY
-      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&gid=${GID}&tq=${tq}`;
-      const res = await fetch(url);
-      if(!res.ok) throw new Error(`GViz HTTP ${res.status}`);
-      const text = await res.text();
-      const m = text.match(/setResponse\(([\s\S]+)\)\s*;?$/);
-      if(!m) throw new Error("GViz: respuesta inesperada (¿permisos?)");
-      const obj = JSON.parse(m[1]);
-      if (obj.status && obj.status.toLowerCase() !== 'ok') {
-        const detalle = obj.errors?.[0]?.detailed_message || obj.errors?.[0]?.message || obj.status;
-        throw new Error(`GViz error: ${detalle}`);
-      }
-      setStatus("Cargado vía GViz");
-      return obj;
+    // ====== 1) GViz por JSONP (sin CORS) ======
+    function fetchGVizJSONP(){
+      return new Promise((resolve,reject)=>{
+        const tq = encodeURIComponent('select *');
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${GID}&tqx=out:json&tq=${tq}`;
+        // Prepara hook JSONP
+        window.google = window.google || {};
+        window.google.visualization = window.google.visualization || {};
+        const original = window.google.visualization.Query?.setResponse;
+        window.google.visualization.Query = window.google.visualization.Query || {};
+        window.google.visualization.Query.setResponse = function(obj){
+          try{
+            if(obj.status && obj.status.toLowerCase()!=='ok'){
+              const detalle = obj.errors?.[0]?.detailed_message || obj.errors?.[0]?.message || obj.status;
+              reject(new Error(`GViz error: ${detalle}`));
+            }else{
+              setStatus("Cargado vía GViz (JSONP)");
+              resolve(obj);
+            }
+          }finally{
+            cleanup();
+          }
+        };
+        // Inyecta <script>
+        const s = document.createElement('script');
+        s.src = url; s.async = true;
+        s.onerror = ()=>{ cleanup(); reject(new Error("GViz JSONP onerror (¿permisos?)")); };
+        document.head.appendChild(s);
+
+        // Timeout por si no llama al callback (p.ej. sin permisos)
+        const to = setTimeout(()=>{ cleanup(); reject(new Error("GViz JSONP timeout (¿permisos?)")); }, 8000);
+
+        function cleanup(){
+          clearTimeout(to);
+          if(s && s.parentNode) s.parentNode.removeChild(s);
+          // restaura
+          if(original) window.google.visualization.Query.setResponse = original;
+        }
+      });
     }
 
+    // ====== 2) CSV export ======
     async function fetchCSV(){
-      // Requiere “Cualquier persona con el enlace → Lector”
-      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
-      const res = await fetch(url);
+      const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`;
+      const res=await fetch(url,{mode:'cors'});
       if(!res.ok) throw new Error(`CSV HTTP ${res.status}`);
-      const csv = await res.text();
+      const csv=await res.text();
       setStatus("Cargado vía CSV (export)");
       return parseCSVtoGVizLike(csv);
     }
 
+    // ====== 3) CSV publicar en la web ======
     async function fetchPubCSV(){
-      // Requiere “Archivo → Publicar en la web → Hoja actual → CSV”
-      const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID}&single=true&output=csv`;
-      const res = await fetch(url);
+      const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID}&single=true&output=csv`;
+      const res=await fetch(url,{mode:'cors'});
       if(!res.ok) throw new Error(`PUB CSV HTTP ${res.status}`);
-      const csv = await res.text();
+      const csv=await res.text();
       setStatus("Cargado vía CSV (Publicar en la web)");
       return parseCSVtoGVizLike(csv);
-    }
-
-    // ========= Normalización de encabezados de fecha =========
-    function headerToISO(h){
-      if(!h) return null;
-      h = String(h).trim();
-      // YYYY-MM-DD / YYYY/MM/DD / YYYY.MM.DD
-      let m = h.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
-      if(m){
-        const [_,Y,M,D] = m;
-        return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`;
-      }
-      // DD/MM/YYYY (o año de 2 dígitos)
-      m = h.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-      if(m){
-        let [_,D,M,Y] = m;
-        if(Y.length===2) Y = `20${Y}`;
-        return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`;
-      }
-      return null;
-    }
-
-    // ========= Detección de estructura =========
-    function detectarEstructuraTablero(cols){
-      const labels = cols.map(c => (c.label||"").toString().trim());
-      // Columna nombre
-      let idxNombre = labels.findIndex(h => /^nombre del alumno$/i.test(h));
-      if(idxNombre===-1) idxNombre = labels.findIndex(h => /nombre|alumno|estudiante/i.test(h));
-      if(idxNombre===-1) idxNombre = 0;
-      // Fechas
-      const dateCols = [];
-      labels.forEach((h,i)=>{
-        const iso = headerToISO(h);
-        if(iso) dateCols.push({ i, label:h, iso });
-      });
-      return { idxNombre, dateCols };
-    }
-
-    // ========= Estado =========
-    let STATE = {
-      rows: [], cols: [], idxNombre: 0, dateCols: [], activeDate: null
-    };
-
-    function getCell(row, idx){
-      const c = row.c?.[idx];
-      if(!c) return "";
-      return (c.f ?? c.v ?? "").toString().trim();
-    }
-
-    function elegirFechaActiva(){
-      const input = document.getElementById("filtroFecha");
-      const solicitadaISO = input.value; // <input type="date"> usa ISO
-
-      const idx = STATE.dateCols.findIndex(dc => dc.iso === solicitadaISO);
-      if(idx !== -1){
-        STATE.activeDate = solicitadaISO;
-        return;
-      }
-      if(STATE.dateCols.length){
-        const latest = STATE.dateCols.map(dc=>dc.iso).sort().at(-1);
-        STATE.activeDate = latest;
-        input.value = latest;
-        return;
-      }
-      STATE.activeDate = "";
-      input.value = "";
-    }
-
-    function render(){
-      const tabla = document.getElementById("tablaPuntos");
-      tabla.innerHTML = "";
-
-      if(!STATE.rows.length){
-        tabla.innerHTML = `<tr><td colspan="5">No hay datos</td></tr>`;
-        return;
-      }
-      elegirFechaActiva();
-
-      if(!STATE.activeDate){
-        tabla.innerHTML = `<tr><td colspan="5">No hay columnas de fecha (YYYY-MM-DD) en la hoja.</td></tr>`;
-        return;
-      }
-
-      const target = STATE.dateCols.find(dc => dc.iso === STATE.activeDate);
-      if(!target){
-        tabla.innerHTML = `<tr><td colspan="5">No se encontró la columna de la fecha seleccionada.</td></tr>`;
-        return;
-      }
-      const idxFechaCol = target.i;
-
-      const showAll = document.getElementById("mostrarTodos")?.checked;
-
-      const items = [];
-      for(const r of STATE.rows){
-        const nombre = getCell(r, STATE.idxNombre) || "Alumno";
-        if(!nombre) continue;
-        let puntosRaw = getCell(r, idxFechaCol);
-        let puntos = parseInt(String(puntosRaw).replace(/[^\d-]/g,""),10);
-        if(Number.isNaN(puntos)) puntos = 0;
-
-        if(puntos > 0 || showAll){
-          items.push({ nombre, puntos });
-        }
-      }
-
-      items.sort((a,b)=> b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
-
-      if(items.length===0){
-        const msg = `No hay alumnos para ${STATE.activeDate}.`;
-        tabla.innerHTML = `<tr><td colspan="5">${msg}</td></tr>`;
-        return;
-      }
-
-      for(const {nombre, puntos} of items){
-        const rango = obtenerRango(puntos);
-        const recompensa = obtenerRecompensas(puntos);
-        tabla.insertAdjacentHTML("beforeend", `
-          <tr>
-            <td>${STATE.activeDate}</td>
-            <td>${nombre}</td>
-            <td>${puntos}</td>
-            <td class="brillo">${rango}</td>
-            <td class="brillo">${recompensa}</td>
-          </tr>
-        `);
-      }
-
-      filtrarTabla();
     }
 
     async function cargar(){
       actualizarCabecera();
       document.getElementById("filtroFecha").value = hoyISO();
-      const tabla = document.getElementById("tablaPuntos");
-      tabla.innerHTML = `<tr><td colspan="5">Cargando datos...</td></tr>`;
+      const tabla=document.getElementById("tablaPuntos");
+      tabla.innerHTML=`<tr><td colspan="5">Cargando datos...</td></tr>`;
 
       try{
         let data;
         try{
-          data = await fetchGViz();                 // 1) GViz
+          data = await fetchGVizJSONP();         // 1) JSONP (evita CORS)
         }catch(e1){
-          console.warn("GViz falló, probando CSV export…", e1);
+          console.warn("GViz JSONP falló → probando CSV export…", e1);
           try{
-            data = await fetchCSV();                // 2) export CSV
+            data = await fetchCSV();             // 2) export CSV (requiere compartir: lector)
           }catch(e2){
-            console.warn("CSV export falló, probando Publicar en la web CSV…", e2);
-            data = await fetchPubCSV();             // 3) publish-to-web CSV
+            console.warn("CSV export falló → probando CSV publicar…", e2);
+            data = await fetchPubCSV();          // 3) publicar en la web CSV
           }
         }
 
         const cols = data.table?.cols || [];
         const rows = data.table?.rows || [];
-        if(!rows.length){
-          setStatus("Sin filas en la hoja.");
-          tabla.innerHTML = `<tr><td colspan="5">Sin filas en la hoja.</td></tr>`;
-          return;
-        }
+        if(!rows.length){ setStatus("Sin filas en la hoja."); tabla.innerHTML=`<tr><td colspan="5">Sin filas en la hoja.</td></tr>`; return; }
 
         const { idxNombre, dateCols } = detectarEstructuraTablero(cols);
-        STATE.rows = rows;
-        STATE.cols = cols;
-        STATE.idxNombre = idxNombre;
-        STATE.dateCols = dateCols;
-
-        if(!dateCols.length){
-          setStatus("No se detectaron columnas de fecha. Asegúrate de que los encabezados de fechas sean tipo 2025-11-04 o 04/11/2025.");
-        }
-
+        STATE.rows=rows; STATE.cols=cols; STATE.idxNombre=idxNombre; STATE.dateCols=dateCols;
+        if(!dateCols.length){ setStatus("No hay encabezados de fecha válidos. Usa 2025-11-04 o 04/11/2025 en los encabezados."); }
         render();
 
       }catch(err){
         console.error(err);
-        setStatus("Error al cargar datos (¿permisos/gid?). Comparte como 'Cualquiera con el enlace → Lector' o 'Publicar en la web'.");
+        setStatus("Error al cargar (permisos/gid). Comparte como 'Cualquiera con el enlace → Lector' o usa 'Publicar en la web'.");
         tabla.innerHTML = `<tr><td colspan="5">
-          Error al cargar datos.<br>
-          1) Comprueba permisos: <b>Compartir → Cualquiera con el enlace → Lector</b>.<br>
+          Error al cargar datos.<br>1) Comprueba permisos: <b>Compartir → Cualquiera con el enlace → Lector</b>.<br>
           2) (Opcional) <b>Archivo → Publicar en la web → Hoja actual → CSV</b>.<br>
-          3) Verifica que el <b>gid=${GID}</b> coincida con la pestaña correcta.
+          3) Verifica <b>gid=${GID}</b> coincide con la pestaña correcta.
         </td></tr>`;
       }
     }
 
-    // Go!
     cargar();
   </script>
 </body>
