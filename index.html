@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Tabla de Puntos</title>
 <style>
   body{font-family:"Comic Sans MS","Comic Sans","Comic Neue",cursive;background:#fff;color:#111;margin:0;text-align:center}
@@ -22,74 +23,134 @@
   <div class="controls">
     <input type="date" id="filtroFecha" onchange="render()"/>
     <input type="text" id="buscador" placeholder="Buscar alumno..." onkeyup="filtrarTabla()"/>
-    <label class="toggle"><input type="checkbox" id="mostrarTodos" onchange="render()"/>Mostrar todos</label>
+    <label class="toggle"><input type="checkbox" id="mostrarTodos" onchange="render()"/>Mostrar todos (incluye sin puntos)</label>
   </div>
   <div id="status">Cargando datos…</div>
   <table>
-    <thead><tr><th>Fecha</th><th>Alumno</th><th>Puntos</th><th>Rango</th><th>Recompensas</th></tr></thead>
-    <tbody id="tablaPuntos"><tr><td colspan="5">Cargando…</td></tr></tbody>
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Alumno</th>
+        <th>Asistencia</th>
+        <th>Puntos</th>
+        <th>Trabajó</th>
+        <th>Rango</th>
+        <th>Recompensas</th>
+      </tr>
+    </thead>
+    <tbody id="tablaPuntos">
+      <tr><td colspan="7">Cargando…</td></tr>
+    </tbody>
   </table>
 
 <script>
-const SHEET_ID="1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
-const GID="0";
+const SHEET_ID       = "1SWtGmXlf7WbNvUlJBDktXpDcq5OfJkHE75bH5nkxurk";
+const GID_PUNTOS     = "0";          // Hoja "Puntos"
+const SHEET_ASIST    = "Asistencia"; // Nombre de la pestaña
+// Opcional: si quieres usar gid en CSV/publish para Asistencia
+const GID_ASISTENCIA = "280572348";
 
 function setStatus(t){ const el=document.getElementById("status"); if(el) el.textContent=t; console.log("[STATUS]",t); }
 function hoyISO(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` }
 function actualizarCabecera(){ document.getElementById("fecha").innerHTML=`📅 Hoy es: <b>${new Date().toLocaleDateString('es-ES',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</b>` }
-function obtenerRango(p){ if(p>=90)return"🌈🔥 Gran maestro arcoiris"; if(p>=80)return"🌈 Heroico arcoiris"; if(p>=70)return"🟠🔥 Heroico élite"; if(p>=60)return"🟡 Heroico"; if(p>=50)return"🔴 Gran Maestro"; if(p>=40)return"🟠 Maestro"; if(p>=30)return"🟣 Experto"; if(p>=20)return"🔵 Avanzado"; if(p>=10)return"🟢 Trabajador"; return"⚪ Sin rango" }
-function obtenerRecompensas(p){ const G=Math.floor(p/30), S=Math.floor((p%30)/10); let r="✨"; for(let i=0;i<G;i++)r+="🌟"; for(let i=0;i<S;i++)r+="⭐"; if(p>=70)r+=" 🌌"; if(p>=90)r+=" 🌈"; return r }
-function filtrarTabla(){ const f=document.getElementById("filtroFecha").value, n=(document.getElementById("buscador").value||"").toLowerCase().trim(); document.querySelectorAll("#tablaPuntos tr").forEach(tr=>{ const F=tr.cells[0]?.innerText||"", N=(tr.cells[1]?.innerText||"").toLowerCase(); tr.style.display=(!f||F===f) && (!n||N.includes(n)) ? "" : "none"; }); }
+
+function obtenerRango(p){
+  if(p>=90)return"🌈🔥 Gran maestro arcoiris";
+  if(p>=80)return"🌈 Heroico arcoiris";
+  if(p>=70)return"🟠🔥 Heroico élite";
+  if(p>=60)return"🟡 Heroico";
+  if(p>=50)return"🔴 Gran Maestro";
+  if(p>=40)return"🟠 Maestro";
+  if(p>=30)return"🟣 Experto";
+  if(p>=20)return"🔵 Avanzado";
+  if(p>=10)return"🟢 Trabajador";
+  return"⚪ Sin rango";
+}
+function obtenerRecompensas(p){
+  const G=Math.floor(p/30), S=Math.floor((p%30)/10);
+  let r="✨";
+  for(let i=0;i<G;i++)r+="🌟";
+  for(let i=0;i<S;i++)r+="⭐";
+  if(p>=70)r+=" 🌌";
+  if(p>=90)r+=" 🌈";
+  return r;
+}
+
+function filtrarTabla(){
+  const f=document.getElementById("filtroFecha").value;
+  const n=(document.getElementById("buscador").value||"").toLowerCase().trim();
+  document.querySelectorAll("#tablaPuntos tr").forEach(tr=>{
+    const F=tr.cells[0]?.innerText||"";
+    const N=(tr.cells[1]?.innerText||"").toLowerCase();
+    tr.style.display=(!f||F===f) && (!n||N.includes(n)) ? "" : "none";
+  });
+}
 
 function headerToISO(h){
-  if(!h) return null; h=String(h).trim();
-  let m=h.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/); if(m){const[_,Y,M,D]=m; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`}
-  m=h.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/); if(m){let[_,D,M,Y]=m; if(Y.length===2)Y=`20${Y}`; return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`}
-  return null
+  if(!h) return null;
+  h=String(h).trim();
+  let m=h.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+  if(m){
+    const[_,Y,M,D]=m;
+    return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`;
+  }
+  m=h.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})$/);
+  if(m){
+    let[_,D,M,Y]=m;
+    if(Y.length===2)Y=`20${Y}`;
+    return `${Y}-${String(M).padStart(2,'0')}-${String(D).padStart(2,'0')}`;
+  }
+  return null;
 }
-function getCell(row,idx){ const c=row.c?.[idx]; return c ? (c.f ?? (typeof c.v==="string"?c.v:String(c.v??""))).toString().trim() : "" }
-function getCellRaw(row,idx){ const c=row.c?.[idx]; return c ? c.v : null }
+function getCell(row,idx){
+  const c=row.c?.[idx];
+  return c ? (c.f ?? (typeof c.v==="string"?c.v:String(c.v??""))).toString().trim() : "";
+}
+function getCellRaw(row,idx){
+  const c=row.c?.[idx];
+  return c ? c.v : null;
+}
 
-/* === Detecta si la PRIMERA FILA es encabezado real (con fechas) === */
+/* === Detectar fila de encabezado === */
 function detectHeaderRow(data){
   const rows=data.table?.rows||[], cols=data.table?.cols||[];
   if(!rows.length) return {headerRowIdx:-1, labelsFrom:"cols"};
 
-  // 0) Si cols ya traen labels con texto útil, úsalo
   const colLabels=cols.map(c=>(c.label||"").trim());
   const hasAnyLabel=colLabels.some(l=>l);
-  // 1) ¿La fila 0 parece encabezado? (contiene 'Nombre del alumno' o varias celdas con fecha)
+
   const r0=rows[0];
   const c0=(getCell(r0,0)||"").toLowerCase();
   let fechaCount=0;
   for(let i=0;i<cols.length;i++){
     const v=getCell(r0,i);
     const raw=getCellRaw(r0,i);
-    const iso = headerToISO(v) || (typeof raw==="number" && (data.table.cols[i]?.pattern||"").includes("yyyy") ? (getCell(r0,i)) : null) || (typeof raw==="string" && raw.startsWith("Date(") ? (getCell(r0,i)) : null);
+    const iso = headerToISO(v) ||
+      (typeof raw==="number" && (data.table.cols[i]?.pattern||"").includes("yyyy") ? getCell(r0,i) : null) ||
+      (typeof raw==="string" && raw.startsWith("Date(") ? getCell(r0,i) : null);
     if(iso) fechaCount++;
   }
   const r0IsHeader = c0.includes("nombre") || fechaCount>=2;
-
   if(r0IsHeader) return {headerRowIdx:0, labelsFrom:"row"};
   if(hasAnyLabel) return {headerRowIdx:-1, labelsFrom:"cols"};
 
-  // 2) Fallback: si no hay labels y la fila 0 no convenció, intenta fila 1
   if(rows.length>1){
     const r1=rows[1];
     const c1=(getCell(r1,0)||"").toLowerCase();
     let f1=0;
     for(let i=0;i<cols.length;i++){
       const v=getCell(r1,i), raw=getCellRaw(r1,i);
-      const iso = headerToISO(v) || (typeof raw==="number" && (data.table.cols[i]?.pattern||"").includes("yyyy") ? (getCell(r1,i)) : null) || (typeof raw==="string" && raw.startsWith("Date(") ? (getCell(r1,i)) : null);
+      const iso = headerToISO(v) ||
+        (typeof raw==="number" && (data.table.cols[i]?.pattern||"").includes("yyyy") ? getCell(r1,i) : null) ||
+        (typeof raw==="string" && raw.startsWith("Date(") ? getCell(r1,i) : null);
       if(iso) f1++;
     }
     if(c1.includes("nombre") || f1>=2) return {headerRowIdx:1, labelsFrom:"row"};
   }
-  // Último recurso
   return {headerRowIdx:-1, labelsFrom:"cols"};
 }
 
-/* === Estructura: nombre + fechas === */
+/* === Estructura genérica === */
 function detectarEstructura(data){
   const rows=data.table?.rows||[], cols=data.table?.cols||[];
   const {headerRowIdx, labelsFrom}=detectHeaderRow(data);
@@ -97,18 +158,16 @@ function detectarEstructura(data){
   let labels=[], dataStart=0;
   if(labelsFrom==="row" && headerRowIdx>=0){
     labels = cols.map((_,i)=> getCell(rows[headerRowIdx], i));
-    dataStart = headerRowIdx+1; // omite la fila-encabezado
+    dataStart = headerRowIdx+1;
   }else{
     labels = cols.map(c=>(c.label||"").toString().trim());
     dataStart = 0;
   }
 
-  // idx nombre
   let idxNombre = labels.findIndex(h=>/^nombre del alumno$/i.test(h||""));
   if(idxNombre===-1) idxNombre = labels.findIndex(h=>/(^|\s)(nombre|alumno|estudiante)(\s|$)/i.test(h||""));
   if(idxNombre===-1) idxNombre = 0;
 
-  // columnas de fecha: por label, o por la celda del encabezado (row header) o por meta de la col
   const dateCols=[];
   for(let i=0;i<cols.length;i++){
     let iso = headerToISO(labels[i]||"");
@@ -116,12 +175,10 @@ function detectarEstructura(data){
       const vHead = getCell(rows[headerRowIdx], i);
       const rawHead= getCellRaw(rows[headerRowIdx], i);
       iso = headerToISO(vHead);
-      // Si es tipo date/serial con 'f', toma el formateado:
       if(!iso){
         const pat = (data.table.cols[i]?.pattern||"");
-        if(typeof rawHead==="number" && pat.includes("yyyy")) iso = (getCell(rows[headerRowIdx], i)); // ya viene como f:"2025-10-03"
+        if(typeof rawHead==="number" && pat.includes("yyyy")) iso = getCell(rows[headerRowIdx], i);
         if(typeof rawHead==="string" && rawHead.startsWith("Date(")){
-          // f suele traer "yyyy-mm-dd"
           const f = getCell(rows[headerRowIdx], i);
           iso = headerToISO(f)||f;
         }
@@ -133,107 +190,310 @@ function detectarEstructura(data){
   return { idxNombre, dateCols, dataStart };
 }
 
-let STATE={ rows:[], idxNombre:0, dateCols:[], activeDate:null };
+/* === Estado global === */
+let STATE={
+  rows:[],
+  idxNombre:0,
+  dateCols:[],
+  activeDate:null
+};
+
+// asistencia[fechaISO] = Set(canonicalName)
+let ASISTENCIA_MAP = {};
+
+function canonicalName(name){
+  return name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/\s+/g," ")
+    .trim();
+}
+
+function buildAsistenciaMap(data){
+  const rows=data.table?.rows||[];
+  const det=detectarEstructura(data);
+  const map={};
+
+  for(const dc of det.dateCols){
+    const fechaISO = dc.iso;
+    const presentes = new Set();
+    for(let rIndex=det.dataStart; rIndex<rows.length; rIndex++){
+      const r=rows[rIndex];
+      const nombre = getCell(r, det.idxNombre)||"";
+      if(!nombre) continue;
+      const c = r.c?.[dc.i];
+      const raw = c ? (c.v ?? c.f ?? "") : "";
+      const s = String(raw).trim();
+      const num = parseInt(s.replace(/[^\d-]/g,""),10);
+      const esUno = (!Number.isNaN(num) && num===1) || s==="1";
+      if(esUno){
+        presentes.add(canonicalName(nombre));
+      }
+    }
+    map[fechaISO]=presentes;
+  }
+  return map;
+}
 
 function elegirFechaActiva(){
   const input=document.getElementById("filtroFecha");
   const want=input.value;
   const hit=STATE.dateCols.find(dc=>dc.iso===want);
-  if(hit){ STATE.activeDate=want; return; }
+  if(hit){
+    STATE.activeDate=want;
+    return;
+  }
   if(STATE.dateCols.length){
     const latest=STATE.dateCols.map(dc=>dc.iso).sort().at(-1);
-    STATE.activeDate=latest; input.value=latest; return;
+    STATE.activeDate=latest;
+    input.value=latest;
+    return;
   }
-  STATE.activeDate=""; input.value="";
+  STATE.activeDate="";
+  input.value="";
 }
 
 function render(){
-  const tbody=document.getElementById("tablaPuntos"); tbody.innerHTML="";
-  if(!STATE.rows.length){ tbody.innerHTML=`<tr><td colspan="5">No hay datos</td></tr>`; return }
+  const tbody=document.getElementById("tablaPuntos");
+  tbody.innerHTML="";
+
+  if(!STATE.rows.length){
+    tbody.innerHTML=`<tr><td colspan="7">No hay datos</td></tr>`;
+    return;
+  }
+
   elegirFechaActiva();
-  if(!STATE.activeDate){ tbody.innerHTML=`<tr><td colspan="5">No hay columnas de fecha (YYYY-MM-DD)</td></tr>`; return }
+  if(!STATE.activeDate){
+    tbody.innerHTML=`<tr><td colspan="7">No hay columnas de fecha (YYYY-MM-DD)</td></tr>`;
+    return;
+  }
+
   const target=STATE.dateCols.find(dc=>dc.iso===STATE.activeDate);
-  if(!target){ tbody.innerHTML=`<tr><td colspan="5">No se encontró la fecha seleccionada</td></tr>`; return }
-  const idxFechaCol=target.i, showAll=document.getElementById("mostrarTodos")?.checked;
+  if(!target){
+    tbody.innerHTML=`<tr><td colspan="7">No se encontró la fecha seleccionada</td></tr>`;
+    return;
+  }
+
+  const idxFechaCol=target.i;
+  const showAll=document.getElementById("mostrarTodos")?.checked;
+  const presentesSet = ASISTENCIA_MAP[STATE.activeDate] || null;
+
   const items=[];
+  let totalAsisten=0;
+  let totalTrabajan=0;
+
   for(const r of STATE.rows){
     const nombre = getCell(r, STATE.idxNombre)||"Alumno";
     if(!nombre) continue;
+    const canon = canonicalName(nombre);
+
+    const attended = !presentesSet || presentesSet.has(canon);
+    if(!attended) continue; // solo quienes asistieron
+
     let puntos = parseInt(String(getCell(r, idxFechaCol)).replace(/[^\d-]/g,""),10);
     if(Number.isNaN(puntos)) puntos=0;
-    if(puntos>0 || showAll) items.push({nombre,puntos});
+
+    if(puntos>0 || showAll){
+      items.push({nombre,puntos,attended});
+      totalAsisten++;
+      if(puntos>0) totalTrabajan++;
+    }
   }
+
   items.sort((a,b)=> b.puntos-a.puntos || a.nombre.localeCompare(b.nombre));
-  if(!items.length){ tbody.innerHTML=`<tr><td colspan="5">No hay alumnos para ${STATE.activeDate}</td></tr>`; return }
-  for(const {nombre,puntos} of items){
+
+  if(!items.length){
+    tbody.innerHTML=`<tr><td colspan="7">No hay alumnos con asistencia/puntos para ${STATE.activeDate}</td></tr>`;
+    setStatus(`Sin registros para ${STATE.activeDate}.`);
+    return;
+  }
+
+  for(const {nombre,puntos,attended} of items){
+    const txtAsistencia = attended ? "✅ Sí" : "❌ No";
+    const txtTrabajo    = puntos>0  ? "✅ Sí" : "❌ No";
+
     tbody.insertAdjacentHTML("beforeend",`
       <tr>
         <td>${STATE.activeDate}</td>
         <td>${nombre}</td>
+        <td>${txtAsistencia}</td>
         <td>${puntos}</td>
+        <td>${txtTrabajo}</td>
         <td>${obtenerRango(puntos)}</td>
         <td>${obtenerRecompensas(puntos)}</td>
-      </tr>`);
+      </tr>
+    `);
   }
+
+  setStatus(`Asistieron ${totalAsisten} alumnos. De ellos, ${totalTrabajan} trabajaron (tienen puntos &gt; 0).`);
   filtrarTabla();
 }
 
-/* === GViz JSONP (sin CORS) + CSV export + CSV publicado === */
+/* === CSV helpers (para PUNTOS) === */
 function parseCSVtoGVizLike(csv){
-  const rows=csv.split(/\r?\n/).filter(Boolean).map(r=>{const out=[];let cur="",q=false;for(let i=0;i<r.length;i++){const ch=r[i],nx=r[i+1]; if(ch=='"'&&nx=='"'){cur+='"';i++;continue} if(ch=='"'){q=!q;continue} if(ch==','&&!q){out.push(cur);cur="";continue} cur+=ch} out.push(cur); return out});
-  if(!rows.length) return {table:{cols:[],rows:[]}}; const cols=rows[0]; const data=rows.slice(1).map(r=>({ c: cols.map((_,i)=>({ v:r[i]??"" })) }));
+  const rows=csv.split(/\r?\n/).filter(Boolean).map(r=>{
+    const out=[];
+    let cur="",q=false;
+    for(let i=0;i<r.length;i++){
+      const ch=r[i],nx=r[i+1];
+      if(ch=='"'&&nx=='"'){cur+='"';i++;continue}
+      if(ch=='"'){q=!q;continue}
+      if(ch==','&&!q){out.push(cur);cur="";continue}
+      cur+=ch;
+    }
+    out.push(cur);
+    return out;
+  });
+  if(!rows.length) return {table:{cols:[],rows:[]}};
+  const cols=rows[0];
+  const data=rows.slice(1).map(r=>({ c: cols.map((_,i)=>({ v:r[i]??"" })) }));
   return {table:{ cols: cols.map(h=>({label:h})), rows:data }};
 }
-function fetchGVizJSONP(){
+
+/* === GViz JSONP genérico para PUNTOS (gid) === */
+function fetchGVizJSONP_Puntos(){
   return new Promise((resolve,reject)=>{
     const tq=encodeURIComponent('select *');
-    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${GID}&tqx=out:json&tq=${tq}`;
-    window.google=window.google||{}; window.google.visualization=window.google.visualization||{};
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?gid=${GID_PUNTOS}&tqx=out:json&tq=${tq}`;
+    window.google=window.google||{};
+    window.google.visualization=window.google.visualization||{};
     const old=window.google.visualization.Query?.setResponse;
     window.google.visualization.Query=window.google.visualization.Query||{};
     window.google.visualization.Query.setResponse=function(obj){
       try{
         if(obj.status && obj.status.toLowerCase()!=='ok'){
-          const e=obj.errors?.[0]?.detailed_message||obj.errors?.[0]?.message||obj.status; reject(new Error("GViz error: "+e));
-        } else { setStatus("Cargado vía GViz (JSONP)"); resolve(obj); }
-      } finally { if(old) window.google.visualization.Query.setResponse=old; }
+          const e=obj.errors?.[0]?.detailed_message||obj.errors?.[0]?.message||obj.status;
+          reject(new Error("GViz error (Puntos): "+e));
+        } else {
+          resolve(obj);
+        }
+      } finally {
+        if(old) window.google.visualization.Query.setResponse=old;
+      }
     };
-    const s=document.createElement("script"); s.src=url; s.async=true;
-    s.onerror=()=>{ if(old) window.google.visualization.Query.setResponse=old; reject(new Error("GViz JSONP onerror (¿permisos?)")) };
+    const s=document.createElement("script");
+    s.src=url;
+    s.async=true;
+    s.onerror=()=>{
+      if(old) window.google.visualization.Query.setResponse=old;
+      reject(new Error("GViz JSONP Puntos onerror (¿permisos?)"));
+    };
     document.head.appendChild(s);
-    setTimeout(()=>{ if(window.google.visualization.Query.setResponse===old) return; window.google.visualization.Query.setResponse=old; reject(new Error("GViz JSONP timeout")); },8000);
+    setTimeout(()=>{
+      if(window.google.visualization.Query.setResponse===old) return;
+      window.google.visualization.Query.setResponse=old;
+      reject(new Error("GViz JSONP Puntos timeout"));
+    },8000);
   });
 }
-async function fetchCSV(){ const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID}`; const r=await fetch(url,{mode:'cors'}); if(!r.ok) throw new Error("CSV HTTP "+r.status); setStatus("Cargado vía CSV (export)"); return parseCSVtoGVizLike(await r.text()); }
-async function fetchPubCSV(){ const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID}&single=true&output=csv`; const r=await fetch(url,{mode:'cors'}); if(!r.ok) throw new Error("PUB CSV HTTP "+r.status); setStatus("Cargado vía CSV (Publicar en la web)"); return parseCSVtoGVizLike(await r.text()); }
+
+/* === GViz JSONP específico para Asistencia (por nombre de hoja) === */
+function fetchGVizJSONP_Asistencia(){
+  return new Promise((resolve,reject)=>{
+    const tq=encodeURIComponent('select *');
+    const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${encodeURIComponent(SHEET_ASIST)}&headers=1&tqx=out:json&tq=${tq}`;
+    window.google=window.google||{};
+    window.google.visualization=window.google.visualization||{};
+    const old=window.google.visualization.Query?.setResponse;
+    window.google.visualization.Query=window.google.visualization.Query||{};
+    window.google.visualization.Query.setResponse=function(obj){
+      try{
+        if(obj.status && obj.status.toLowerCase()!=='ok'){
+          const e=obj.errors?.[0]?.detailed_message||obj.errors?.[0]?.message||obj.status;
+          reject(new Error("GViz error (Asistencia): "+e));
+        } else {
+          resolve(obj);
+        }
+      } finally {
+        if(old) window.google.visualization.Query.setResponse=old;
+      }
+    };
+    const s=document.createElement("script");
+    s.src=url;
+    s.async=true;
+    s.onerror=()=>{
+      if(old) window.google.visualization.Query.setResponse=old;
+      reject(new Error("GViz JSONP Asistencia onerror (¿permisos?)"));
+    };
+    document.head.appendChild(s);
+    setTimeout(()=>{
+      if(window.google.visualization.Query.setResponse===old) return;
+      window.google.visualization.Query.setResponse=old;
+      reject(new Error("GViz JSONP Asistencia timeout"));
+    },8000);
+  });
+}
+
+/* CSV y PUB para puntos (fallback) */
+async function fetchCSV_Puntos(){
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${GID_PUNTOS}`;
+  const r=await fetch(url,{mode:'cors'});
+  if(!r.ok) throw new Error("CSV Puntos HTTP "+r.status);
+  return parseCSVtoGVizLike(await r.text());
+}
+async function fetchPubCSV_Puntos(){
+  const url=`https://docs.google.com/spreadsheets/d/${SHEET_ID}/pub?gid=${GID_PUNTOS}&single=true&output=csv`;
+  const r=await fetch(url,{mode:'cors'});
+  if(!r.ok) throw new Error("PUB CSV Puntos HTTP "+r.status);
+  return parseCSVtoGVizLike(await r.text());
+}
 
 async function cargar(){
   actualizarCabecera();
   document.getElementById("filtroFecha").value=hoyISO();
-  const tbody=document.getElementById("tablaPuntos"); tbody.innerHTML=`<tr><td colspan="5">Cargando…</td></tr>`;
+  const tbody=document.getElementById("tablaPuntos");
+  tbody.innerHTML=`<tr><td colspan="7">Cargando…</td></tr>`;
+  setStatus("Cargando datos de puntos y asistencia…");
+
   try{
-    let data;
-    try{ data=await fetchGVizJSONP(); }
-    catch(e1){ console.warn("GViz JSONP falló → CSV export", e1);
-      try{ data=await fetchCSV(); }
-      catch(e2){ console.warn("CSV export falló → CSV publicar", e2);
-        data=await fetchPubCSV();
+    /* === Cargar PUNTOS === */
+    let dataPuntos;
+    try{
+      dataPuntos = await fetchGVizJSONP_Puntos();
+      setStatus("Puntos cargados vía GViz (JSONP)...");
+    }catch(e1){
+      console.warn("GViz JSONP Puntos falló → CSV export", e1);
+      try{
+        dataPuntos = await fetchCSV_Puntos();
+        setStatus("Puntos cargados vía CSV (export)");
+      }catch(e2){
+        console.warn("CSV export Puntos falló → CSV publicar", e2);
+        dataPuntos = await fetchPubCSV_Puntos();
+        setStatus("Puntos cargados vía CSV (Publicar en la web)");
       }
     }
-    const det=detectarEstructura(data);
-    const allRows=data.table?.rows||[];
-    STATE.rows = (det.dataStart>0) ? allRows.slice(det.dataStart) : allRows;
-    STATE.idxNombre = det.idxNombre;
-    STATE.dateCols  = det.dateCols;
 
-    if(!STATE.rows.length) { setStatus("Sin filas en la hoja."); tbody.innerHTML=`<tr><td colspan="5">Sin filas</td></tr>`; return; }
-    if(!STATE.dateCols.length){ setStatus("No hay encabezados de fecha válidos. Usa 2025-11-04 o 04/11/2025 en la fila de encabezado."); }
+    const detP=detectarEstructura(dataPuntos);
+    const allRows=dataPuntos.table?.rows||[];
+    STATE.rows = (detP.dataStart>0) ? allRows.slice(detP.dataStart) : allRows;
+    STATE.idxNombre = detP.idxNombre;
+    STATE.dateCols  = detP.dateCols;
+
+    if(!STATE.rows.length){
+      setStatus("Sin filas en la hoja de puntos.");
+      tbody.innerHTML=`<tr><td colspan="7">Sin filas</td></tr>`;
+      return;
+    }
+    if(!STATE.dateCols.length){
+      setStatus("No hay encabezados de fecha válidos en Puntos. Usa 2025-11-04 o 04/11/2025 en la fila de encabezado.");
+    }
+
+    /* === Cargar ASISTENCIA === */
+    try{
+      const dataAsis = await fetchGVizJSONP_Asistencia();
+      ASISTENCIA_MAP = buildAsistenciaMap(dataAsis);
+      setStatus("Puntos y asistencia cargados correctamente.");
+    }catch(eAsis){
+      console.warn("No se pudo cargar Asistencia", eAsis);
+      ASISTENCIA_MAP = {};
+      setStatus("Puntos cargados, pero no se pudo cargar Asistencia (revisa permisos o nombre de hoja).");
+    }
 
     render();
   }catch(err){
     console.error(err);
     setStatus("Error al cargar (permisos/gid). Comparte como 'Cualquiera con el enlace → Lector' o usa 'Publicar en la web'.");
-    tbody.innerHTML=`<tr><td colspan="5">Error de carga. Revisa permisos y gid=${GID}.</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="7">Error de carga. Revisa permisos y gid.</td></tr>`;
   }
 }
 
